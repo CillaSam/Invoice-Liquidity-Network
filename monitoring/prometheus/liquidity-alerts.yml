@@ -1,0 +1,199 @@
+# ILN liquidity monitoring metrics and alert thresholds
+#
+# Reference: docs/trust-liquidity-model.md §7.8 (Monitoring and Runbook
+# References). That section names the metrics, thresholds, and runbook
+# anchors required for the withdrawal-queue implementation; this file is
+# the first operator-observable control for them.
+#
+# Alerts fire against metrics the Soroban indexer / withdrawal processor
+# must publish; see §7.3 (state machine), §7.4 (epoch processing), and
+# §7.6 (circuit breakers) for the state transitions these metrics
+# summarise. Until the pooled-LP contract ships, the alerts stay armed
+# but the underlying series are expected to be absent on prod — that is
+# itself asserted by `ILNLiquidityMetricsMissing`.
+#
+# Load alongside prometheus.yml:
+#   rule_files:
+#     - /etc/prometheus/rules/liquidity-alerts.yml
+#     - /etc/prometheus/rules/slo-alerts.yml
+#     - /etc/prometheus/rules/oracle-service-alerts.yml
+#     - /etc/prometheus/rules/data-loss-alerts.yml
+
+groups:
+  - name: liquidity-coverage
+    interval: 30s
+    rules:
+      # ── 1. Liquidity coverage ratio (§7.5, §7.8) ──────────────────────
+      # liquidity_coverage_ratio = available_liquidity / total_queued_withdrawals
+      # (capped at 1.0 at the source; we assert on the raw series so alert
+      # arithmetic stays unambiguous when there are zero queued requests).
+      - record: iln_liquidity_coverage_ratio:avg_over_1e
+        expr: |
+          avg_over_time(iln_liquidity_coverage_ratio[7d])
+
+      - alert: ILNLiquidityCoverageRatioLow
+        expr: |
+          (
+            iln_liquidity_coverage_ratio < 0.5
+          )
+          and on (pool_id)
+          (iln_liquidity_coverage_ratio offset 7d < 0.5)
+        for: 14d
+        labels:
+          severity: critical
+          team: protocol
+          component: withdrawal-queue
+          domain: liquidity
+        annotations:
+          summary: >-
+            Pool {{ $labels.pool_id }} liquidity coverage ratio has stayed below 0.5 for ≥ 2 consecutive epochs.
+          description: >-
+            Available liquidity cannot satisfy half of the queued withdrawals
+            for the second epoch running. Per docs/trust-liquidity-model.md §7.8
+            this fires the Liquidity Crisis runbook. Pause new invoice
+            deployment if the funding circuit breaker has not already engaged,
+            publish a liquidity-status disclosure (see
+            docs/investor-disclosures-liquidity.md), and keep operator
+            comms on the public status page until coverage > 0.5 for two
+            consecutive epochs.
+          runbook: docs/runbooks/liquidity-crisis.md
+
+      - alert: ILNLiquidityCoverageRatioDegrading
+        # Early warning: coverage dropped by ≥ 20 points within 7d while
+        # remaining above the hard floor. Ticket, don't page.
+        expr: |
+          (
+            iln_liquidity_coverage_ratio < 0.8
+          )
+          and
+          (
+            iln_liquidity_coverage_ratio
+              < (iln_liquidity_coverage_ratio offset 7d) - 0.2
+          )
+        for: 3h
+        labels:
+          severity: warning
+          team: protocol
+          component: withdrawal-queue
+          domain: liquidity
+        annotations:
+          summary: >-
+            Pool {{ $labels.pool_id }} liquidity coverage dropped > 20 points week-over-week.
+          description: >-
+            This is the leading indicator the Liquidity Crisis runbook asks
+            operators to track. Not pageable; review on the next business day.
+          runbook: docs/runbooks/liquidity-crisis.md
+
+  - name: withdrawal-queue-age
+    interval: 1m
+    rules:
+      # ── 2. Oldest queued request age (§7.5, §7.8) ──────────────────────
+      # Metric unit: seconds since submission. Alerts cross-check against
+      # the MAX_NOTICE_EPOCHS * EPOCH_DURATION_DAYS envelope from §7.2.
+      - alert: ILNWithdrawalQueueStale
+        expr: |
+          max by (pool_id) (iln_oldest_queued_request_age_seconds) > (28 * 24 * 3600)
+        for: 15m
+        labels:
+          severity: high
+          team: protocol
+          component: withdrawal-queue
+          domain: liquidity
+        annotations:
+          summary: >-
+            Oldest queued withdrawal in pool {{ $labels.pool_id }} is older than MAX_NOTICE_EPOCHS × EPOCH_DURATION_DAYS (28 days).
+          description: >-
+            A queued request has exceeded the governance-maximum notice
+            period without reaching PROCESSING. The Stale Withdrawal
+            Investigation runbook names the owner and reconciles the
+            request against the on-chain state machine (§7.3). Confirm
+            the request was not silently cancelled, then page protocol
+            on-call if the audit trail does not explain the delay.
+          runbook: docs/runbooks/stale-withdrawal.md
+
+  - name: withdrawal-circuit-breakers
+    interval: 30s
+    rules:
+      # ── 3. Circuit breaker active (§7.6, §7.8) ─────────────────────────
+      # `iln_circuit_breaker_active` is 1 while any trigger is active,
+      # 0 otherwise, with a `trigger_type` label.
+      - alert: ILNFundingCircuitBreakerActive
+        expr: max by (pool_id, trigger_type) (iln_circuit_breaker_active) == 1
+        for: 1m
+        labels:
+          severity: high
+          team: protocol
+          component: withdrawal-queue
+          domain: liquidity
+        annotations:
+          summary: >-
+            Funding circuit breaker active on pool {{ $labels.pool_id }} ({{ $labels.trigger_type }}).
+          description: >-
+            New invoice deployment is paused for this pool. Follow the
+            Funding Pause Response runbook: confirm the trigger is
+            genuine, cross-check against the on-chain CircuitBreakerTriggered
+            event (§7.3), and let the automatic PAUSE_COOLDOWN_EPOCHS
+            recovery (§7.6) complete before escalating to a manual override.
+          runbook: docs/runbooks/funding-pause.md
+
+  - name: withdrawal-fill-health
+    interval: 30s
+    rules:
+      # ── 4. Partial-fill rate per epoch (§7.4, §7.8) ────────────────────
+      # Series unit: ratio of PARTIAL fills to total processed requests
+      # in the last completed epoch.
+      - alert: ILNHighPartialFillRate
+        expr: |
+          max by (pool_id) (iln_partial_fill_rate_last_epoch) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          team: protocol
+          component: withdrawal-queue
+          domain: liquidity
+        annotations:
+          summary: >-
+            Partial fill rate in pool {{ $labels.pool_id }} is above 50% in the last completed epoch.
+          description: >-
+            More than half of processed withdrawals were partially filled
+            — a leading indicator that queued demand is overshooting the
+            idle-cash budget. Partial Fill Analysis runbook covers the
+            repayment-forecast cross-check the oncall should run before
+            raising this to the protocol lead.
+          runbook: docs/runbooks/partial-fill-analysis.md
+
+  - name: liquidity-metrics-presence
+    interval: 5m
+    rules:
+      # ── 5. Metric-presence guard rail ──────────────────────────────────
+      # The above alerts are silent-fail if the series never ship. This
+      # check pages the oncall when the pooled-LP contract has been
+      # declared live (via the deploy_stage label on
+      # `iln_liquidity_feature_enabled`) but the coverage ratio series
+      # hasn't been scraped for a full hour.
+      - alert: ILNLiquidityMetricsMissing
+        expr: |
+          (
+            max(iln_liquidity_feature_enabled) == 1
+          )
+          and
+          (
+            absent_over_time(iln_liquidity_coverage_ratio[1h])
+          )
+        for: 10m
+        labels:
+          severity: critical
+          team: protocol
+          component: withdrawal-queue
+          domain: liquidity
+        annotations:
+          summary: >-
+            Liquidity coverage metrics missing while feature flag reports pooled LP shares are enabled.
+          description: >-
+            The withdrawal-queue scraper is not emitting
+            `iln_liquidity_coverage_ratio` while the pooled-LP feature flag
+            is on. Treat as a monitoring outage: investigate the indexer
+            exporter, verify the contract events are still landing, and
+            re-enable the circuit breaker manually if visibility cannot be
+            restored within one epoch.
+          runbook: docs/runbooks/liquidity-crisis.md
