@@ -5,6 +5,10 @@
       "pattern": "^mailto:"
     },
     {
+      "comment": "Nextra site routes are resolved by the docs app, not by markdown-link-check; the HTTP checker cannot resolve root-relative paths",
+      "pattern": "^/"
+    },
+    {
       "comment": "Absolute paths on a contributor's own machine, never resolvable for anyone else (see docs/pr-16-submission-form.md)",
       "pattern": "^/Users/"
     },
