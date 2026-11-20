@@ -69,7 +69,7 @@ export function rehearseIndexerRollback(input = {}) {
   }
 
   const finalChecksum =
-    replayed.length > 0 ? replayed[replayed.length - 1].checksumAfter : (target?.checksum ?? null);
+    replayed.length > 0 ? replayed[replayed.length - 1].checksumAfter : target?.checksum ?? null;
   if (target && input.expectedChecksum !== undefined && finalChecksum !== input.expectedChecksum) {
     codes.push('REPLAY_CHECKSUM_MISMATCH');
   }
