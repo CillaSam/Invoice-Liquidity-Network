@@ -63,6 +63,7 @@
     "title": "Operations"
   },
   "mainnet-launch-checklist": "Mainnet Launch Checklist",
+  "wave9-hardening-controls": "Wave-9 Hardening Controls",
   "deployment": "Deployment",
   "release-process": "Release Process",
   "release-runbook": "Release Runbook",
@@ -103,6 +104,7 @@
   "security-guide": "Security Guide",
   "vulnerability-disclosure": "Vulnerability Disclosure",
   "secrets-baseline-audit": "Secrets Baseline Audit",
+  "credential-least-privilege-audit": "Credential Least-Privilege Audit",
   "privacy": "Privacy & Data Retention",
   "next.config": "Next Config",
   "theme.config": "Theme Config"
