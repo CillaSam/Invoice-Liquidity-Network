@@ -414,6 +414,18 @@ jobs:
               body: '🚨 **Package.json validation failed!** Run `node scripts/validate-packages.mjs` locally and fix violations before merging.'
             })
 
+  rfc-status:
+    name: RFC implementation status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check RFC implementation status
+        run: node scripts/check-rfc-status.mjs
+
+      - name: Test RFC status checker
+        run: node --test scripts/__tests__/check-rfc-status.test.mjs
+
   sdk-rc-smoke:
     name: SDK RC pack smoke (#1212)
     needs: [pnpm-cache, changes]

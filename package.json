@@ -78,6 +78,8 @@
     "release:verify-dry-run": "node scripts/verify-release-dry-run.mjs",
     "audit:packages": "node scripts/audit-package-releases.mjs",
     "check:doc-links": "node scripts/check-doc-links.mjs",
+    "check:rfc-status": "node scripts/check-rfc-status.mjs",
+    "test:rfc-status": "node --test scripts/__tests__/check-rfc-status.test.mjs",
     "release:audit-log": "node scripts/release-audit-log.mjs",
     "test:release-scripts": "node --test scripts/__tests__/verify-release-dry-run.test.mjs scripts/__tests__/release-audit-log.test.mjs",
     "canary:rollout": "node scripts/canary/rollout.mjs",

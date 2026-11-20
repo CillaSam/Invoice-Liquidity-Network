@@ -5,6 +5,9 @@
 - **Created:** [YYYY-MM-DD]
 - **PR:** [link once submitted]
 - **Tracking issues:** —
+- **Implementation status:** not-applicable
+- **Implementation evidence:** —
+- **Last verified:** [YYYY-MM-DD]
 
 ---
 
@@ -54,8 +57,14 @@ List anything that must be resolved before this RFC can be accepted. Remove item
 
 ## Implementation notes
 
-*(Fill in during or after implementation)*
+*(Fill in during or after implementation — accepted RFCs may not leave this blank)*
 
 - Tracking issue(s): —
 - Implementation PR(s): —
 - Merged: —
+
+> Once this RFC is **Accepted**, change `Implementation status` in the header to
+> `not-started`, `in-progress`, `implemented`, or `deferred`, and replace the
+> evidence placeholder with the PR/issue/code path that supports the claim. The
+> `Last verified` date is re-checked at most every 180 days by
+> `node scripts/check-rfc-status.mjs`.

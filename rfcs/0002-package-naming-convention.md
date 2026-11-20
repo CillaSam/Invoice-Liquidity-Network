@@ -4,6 +4,9 @@
 - **Author(s):** [@Wilfred007](https://github.com/Wilfred007)
 - **Created:** 2026-07-19
 - **PR:** (pending)
+- **Implementation status:** not-applicable
+- **Implementation evidence:** —
+- **Last verified:** 2026-11-20
 
 ---
 

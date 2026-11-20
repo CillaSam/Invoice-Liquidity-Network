@@ -5,6 +5,9 @@
 - **Created:** 2026-10-03
 - **PR:** retrospective audit / docs update
 - **Tracking issues:** #1119
+- **Implementation status:** implemented
+- **Implementation evidence:** `docs/rfc-process.md` and `docs/governance-guide.md`; #1119
+- **Last verified:** 2026-11-20
 
 ---
 

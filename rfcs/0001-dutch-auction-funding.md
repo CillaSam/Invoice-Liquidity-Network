@@ -5,6 +5,9 @@
 - **Created:** 2026-06-23
 - **PR:** (pending)
 - **Tracking issues:** #6, #7, #8, #10
+- **Implementation status:** in-progress
+- **Implementation evidence:** #6, #7, #8, #10; auction fields are decoded in `sdk/src/client.ts`
+- **Last verified:** 2026-11-20
 
 ---
 
