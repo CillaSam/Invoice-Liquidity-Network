@@ -1,0 +1,30 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-11-21T00:00:00Z",
+  "owner": "Release lead",
+  "description": "Registry of SDK and service releases with rollback eligibility status and deadlines",
+  "releases": [
+    {
+      "service": "@iln/sdk",
+      "version": "1.0.0",
+      "releaseDate": "2026-10-21T10:00:00Z",
+      "rollbackDeadline": "2026-10-28T10:00:00Z",
+      "rollbackEligible": false,
+      "containerImageHash": "sha256:sdk-1.0.0-prod",
+      "commitHash": "abc123def456g7h8i9j0",
+      "previousVersion": null,
+      "rollbackProcedure": "sdk/docs/rollback-runbook.md"
+    },
+    {
+      "service": "@iln/sdk-next",
+      "version": "2.0.0",
+      "releaseDate": "2026-10-28T10:00:00Z",
+      "rollbackDeadline": "2026-11-04T10:00:00Z",
+      "rollbackEligible": false,
+      "containerImageHash": "sha256:sdk-next-2.0.0-prod",
+      "commitHash": "k1l2m3n4o5p6q7r8s9t0",
+      "previousVersion": "1.0.0",
+      "rollbackProcedure": "sdk/docs/rollback-runbook.md"
+    }
+  ]
+}
