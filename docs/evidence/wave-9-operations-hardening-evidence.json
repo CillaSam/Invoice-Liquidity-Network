@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "wave9-operations-hardening/v1",
+  "contractPauseUsed": false,
+  "controls": {
+    "operationalReadinessReview": {
+      "issue": 1324,
+      "metrics": {
+        "evaluations": "iln_operational_readiness_evaluations_total",
+        "failures": "iln_operational_readiness_failures_total",
+        "controlsVerified": "iln_operational_readiness_controls_verified",
+        "staleAudits": "iln_operational_readiness_stale_audits_total"
+      },
+      "scenarios": [
+        {
+          "name": "healthy_mainnet_controls_approved",
+          "expectation": true,
+          "observed": true,
+          "pass": true
+        },
+        {
+          "name": "deficient_multisig_quorum_rejected",
+          "expectation": false,
+          "observed": false,
+          "pass": true
+        },
+        {
+          "name": "disabled_circuit_breaker_rejected",
+          "expectation": false,
+          "observed": false,
+          "pass": true
+        },
+        {
+          "name": "stale_emergency_pause_rejected",
+          "expectation": false,
+          "observed": false,
+          "pass": true
+        }
+      ]
+    },
+    "validateMonitoringDashboards": {
+      "issue": 1325,
+      "metrics": {
+        "runs": "iln_dashboard_validation_runs_total",
+        "mismatches": "iln_dashboard_metric_mismatches_total",
+        "syntaxErrors": "iln_dashboard_syntax_errors_total",
+        "validatedPanels": "iln_dashboard_validated_panels_total"
+      },
+      "scenarios": [
+        {
+          "name": "canonical_dashboard_metrics_validated",
+          "expectation": true,
+          "observed": true,
+          "pass": true
+        },
+        {
+          "name": "unregistered_metric_rejected",
+          "expectation": false,
+          "observed": false,
+          "pass": true
+        },
+        {
+          "name": "malformed_promql_syntax_rejected",
+          "expectation": false,
+          "observed": false,
+          "pass": true
+        }
+      ]
+    },
+    "postmortemActionTracking": {
+      "issue": 1326,
+      "metrics": {
+        "actionsTotal": "iln_postmortem_actions_total",
+        "actionsOverdue": "iln_postmortem_actions_overdue",
+        "actionsCompleted": "iln_postmortem_actions_completed",
+        "auditsTotal": "iln_postmortem_tracking_audits_total"
+      },
+      "scenarios": [
+        {
+          "name": "action_items_schema_validated",
+          "expectation": true,
+          "observed": true,
+          "pass": true
+        },
+        {
+          "name": "missing_owner_rejected",
+          "expectation": false,
+          "observed": false,
+          "pass": true
+        },
+        {
+          "name": "overdue_items_detected",
+          "expectation": 1,
+          "observed": 1,
+          "pass": true
+        }
+      ]
+    },
+    "emergencyFeatureDisablePaths": {
+      "issue": 1327,
+      "metrics": {
+        "disablesTotal": "iln_emergency_disables_total",
+        "recoveriesTotal": "iln_emergency_recoveries_total",
+        "rejectionsTotal": "iln_emergency_rejections_total",
+        "activeDisables": "iln_emergency_active_disables"
+      },
+      "scenarios": [
+        {
+          "name": "feature_rehearsal_passed",
+          "expectation": true,
+          "observed": true,
+          "pass": true
+        },
+        {
+          "name": "disabled_funding_fails_closed",
+          "expectation": false,
+          "observed": false,
+          "pass": true
+        },
+        {
+          "name": "disabled_code_service_paused",
+          "expectation": "SERVICE_PAUSED",
+          "observed": "SERVICE_PAUSED",
+          "pass": true
+        }
+      ]
+    }
+  },
+  "generatedAt": "2026-11-21T17:14:56.324Z"
+}
