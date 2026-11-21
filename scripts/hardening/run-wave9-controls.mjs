@@ -17,6 +17,11 @@ import { argv, exit, stdout } from 'node:process';
 import { pathToFileURL } from 'node:url';
 import { CIRCUIT_BREAKER_METRICS, evaluateCircuitBreaker } from './circuit-breaker-controls.mjs';
 import {
+  FIRST_LOSS_METRICS,
+  validateFirstLossAccounting,
+  evaluateFirstLossClaim,
+} from './first-loss-capital-accounting.mjs';
+import {
   INDEXER_ROLLBACK_METRICS,
   rehearseIndexerRollback,
 } from './indexer-rollback-rehearsal.mjs';
@@ -25,6 +30,12 @@ import {
   SETTLEMENT_ANCHOR_METRICS,
   evaluateSettlementAnchor,
 } from './settlement-anchor-enforcement.mjs';
+import {
+  WITHDRAWAL_METRICS,
+  evaluateWithdrawalQueue,
+  validateWithdrawalRequest,
+  processWithdrawalEpoch,
+} from './pooled-share-redemption.mjs';
 
 export const EVIDENCE_SCHEMA = 'wave9-hardening-controls/v1';
 
@@ -135,6 +146,77 @@ export function buildEvidence() {
     expectedChecksum: 'state-corrupt',
   });
 
+  const firstLossValid = validateFirstLossAccounting({
+    treasuryBalance: 5,
+    lpCapitalTotal: 95,
+    poolTvl: 100,
+    committedCapital: 60,
+    idleCapital: 35,
+  });
+  const firstLossImbalance = validateFirstLossAccounting({
+    treasuryBalance: 5,
+    lpCapitalTotal: 94,
+    poolTvl: 100,
+    committedCapital: 60,
+    idleCapital: 35,
+  });
+  const claimApproved = evaluateFirstLossClaim(
+    {
+      claimAmount: 2,
+      invoiceId: 'invoice-1',
+      treasuryBalance: 5,
+      poolTvl: 100,
+    },
+    {},
+    { treasuryCoverageRatio: 0.05, maxClaimRatio: 0.5 },
+  );
+  const claimDenied = evaluateFirstLossClaim(
+    {
+      claimAmount: 10,
+      invoiceId: 'invoice-2',
+      treasuryBalance: 5,
+      poolTvl: 100,
+    },
+    {},
+    { treasuryCoverageRatio: 0.05, maxClaimRatio: 0.5 },
+  );
+
+  const withdrawalValid = validateWithdrawalRequest({
+    requestId: 'wr-1001',
+    lpAddress: 'GADDRESS1',
+    amount: 10,
+    noticeEpochs: 1,
+    submittedEpoch: 5,
+    currentEpoch: 6,
+  });
+  const queueHealthy = evaluateWithdrawalQueue({
+    availableLiquidity: 40,
+    poolTvl: 100,
+    totalQueuedAmount: 15,
+    queuedRequests: 3,
+    singleLpQueuedMax: 5,
+    currentEpoch: 7,
+  });
+  const queueOverflowed = evaluateWithdrawalQueue({
+    availableLiquidity: 40,
+    poolTvl: 100,
+    totalQueuedAmount: 100,
+    queuedRequests: 10,
+    singleLpQueuedMax: 5,
+    currentEpoch: 7,
+  });
+  const epochProcessed = processWithdrawalEpoch(
+    {
+      epoch: 8,
+      availableLiquidity: 40,
+      queuedRequests: [
+        { requestId: 'wr-1001', amount: 20 },
+        { requestId: 'wr-1002', amount: 30 },
+      ],
+    },
+    { currentEpoch: 8 },
+  );
+
   return {
     schemaVersion: EVIDENCE_SCHEMA,
     contractPauseUsed: false,
@@ -149,12 +231,32 @@ export function buildEvidence() {
         ],
       },
       settlementAnchor: {
-        issue: 1308,
+        issue: 1309,
         metrics: { ...SETTLEMENT_ANCHOR_METRICS },
         scenarios: [
           scenario('cleared_and_diverse_route_allows', 'allow', settlement.decision),
           scenario('potential_match_holds', 'hold', settlementHold.decision),
           scenario('single_anchor_route_rejects', 'reject', settlementNoDiversity.decision),
+        ],
+      },
+      firstLossCapital: {
+        issue: 1306,
+        metrics: { ...FIRST_LOSS_METRICS },
+        scenarios: [
+          scenario('valid_accounting_separates_treasury', true, firstLossValid.valid),
+          scenario('accounting_imbalance_detected', false, firstLossImbalance.valid),
+          scenario('claim_within_limits_approved', true, claimApproved.approved),
+          scenario('claim_exceeds_treasury_denied', false, claimDenied.approved),
+        ],
+      },
+      pooledShareRedemption: {
+        issue: 1305,
+        metrics: { ...WITHDRAWAL_METRICS },
+        scenarios: [
+          scenario('valid_withdrawal_request_eligible', true, withdrawalValid.valid),
+          scenario('healthy_queue_allows_funding', false, queueHealthy.newFundingPaused),
+          scenario('queue_overflow_pauses_funding', true, queueOverflowed.newFundingPaused),
+          scenario('epoch_processing_respects_liquidity', true, epochProcessed.invariantHeld),
         ],
       },
       redemptionPricing: {
