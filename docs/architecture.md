@@ -1,5 +1,11 @@
 # ILN Architecture
 
+> **Last reconciled:** 2026-11-20 — verified against `pnpm-workspace.yaml`,
+> `README.md`, `indexer/src/poller.ts`, `notifications/src/poller.ts`, and the
+> service directories in this repository. Deployment status is stated only
+> where this repository provides evidence for it; an external repo's deploy
+> state is not inferred here.
+
 ## Three-Repo Structure
 
 ILN is split across three GitHub repositories, each with a distinct responsibility:
@@ -33,7 +39,7 @@ flowchart TD
 
     subgraph OffChain["Off-Chain Services"]
         INDEXER["Indexer Service\n(Express + SQLite)"]
-        ORACLE["Oracle Service\n(Express + Redis)"]
+        ORACLE["Oracle Service\n(Express + Redis optional)"]
         NOTIF["Notifications Service\n(Express + SQLite)"]
         WORKERS["Workers\n(analytics-collector)"]
     end
@@ -65,21 +71,57 @@ flowchart TD
     INDEXER -->|fetches state via get_invoice| RPC
     ASDK -->|REST queries| INDEXER
 
-    ORACLE -->|queries payer verification| RPC
-    ILC -->|calls for verification| ORACLE
-    
+    ORACLE -->|history queries| INDEXER
+    ORACLE -->|reputation reads| RPC
+    CALLER["Caller / SDK\n(funding decision)"] -->|POST /v1/verify| ORACLE
+    CALLER -->|fund_invoice()| ILNSDK
+
     NOTIF -->|polls events| RPC
     NSDK -->|subscribe / unsubscribe| NOTIF
 
-    HORIZON -->|SSE event stream| INDEXER
-    
+    HORIZON -->|SSE event stream| HINDEXER["@iln/indexer\n(utility library)"]
+
     WORKERS -->|collects analytics data| INDEXER
 
     ILC --> DIST
     GOV -->|updates params| ILC
 ```
 
+Two edges are easy to get wrong and are worth stating explicitly:
+
+- **The contract never calls the oracle.** Soroban contracts cannot make HTTP
+  requests. A caller/SDK obtains a verdict over REST and uses it in its funding
+  decision; the on-chain `require_oracle_verification` path is an input to that
+  caller-side decision, not an on-chain HTTP call.
+- **The production indexer service polls Soroban RPC**, not Horizon. Horizon
+  SSE is used by the separate `packages/indexer/` utility library, which is a
+  different artifact with a different data source (see
+  [README.md](../README.md#indexer-client-library-packagesindexer)).
+
 ---
+
+## Component Status
+
+The diagram describes the intended topology. This table records what is
+actually active in this repository, what is external, and what is not deployed.
+
+| Component | Location | Status | Evidence / scope |
+| --- | --- | --- | --- |
+| `@iln/sdk`, `@invoice-liquidity/cli` | `sdk/`, `cli/` | Active | Workspace packages, tests, and public entry points |
+| Indexer service (`iln-indexer`) | `indexer/` | Active | Soroban RPC poller, SQLite, REST/GraphQL; Railway is the documented deployment target |
+| Notifications service | `notifications/` | Active | RPC poller, delivery channels, provider-health and tests; deployed separately |
+| Oracle service | `oracle-service/` | Active | Express service with unit/chaos/coverage suites; deployment target is environment-specific |
+| Analytics collector | `workers/analytics-collector/` | Active (deployable) | Cloudflare Worker + `wrangler.toml`; this repo does not assert a live deployment |
+| `@iln/react`, `@iln/shared`, `@iln/indexer`, `@iln/opentelemetry`, `@iln/mock-backend` | `packages/*` | Active libraries | Workspace members with published or internal consumers |
+| `@iln/sdk-next` | `packages/sdk/` | Experimental | Alternate SDK surface; not the production SDK |
+| `@invoice-liquidity/docs-next` | `packages/docs/` | Active (deployed site) | Canonical docs site at docs.iln.finance |
+| Legacy docs app (`@invoice-liquidity/docs`) | `docs/` | **Not deployed** | Nextra 2 source of record during migration; content is authoritative, app is not |
+| `ILN-Frontend` | `frontend/` submodule | External repo | Pinned as a submodule; source and deployment live in that repo |
+| `ILN-Smart-Contract` | `backend/` submodule | External repo | Pinned as a submodule; contract source and deployment live in that repo |
+| Mainnet contracts | `ILN-Smart-Contract` | **Planned / pending audit** | Testnet and standalone are the documented targets; this repo does not verify a mainnet deployment |
+
+> `frontend/` and `backend/` are git submodules and are empty until
+> `git submodule update --init` is run. Neither is a pnpm workspace member.
 
 ## Package Structure (Org Root Repo)
 
@@ -130,6 +172,8 @@ Invoice-Liquidity-Network/
 │   ├── docs/               # @invoice-liquidity/docs-next (Nextra 3 deployed site)
 │   ├── eslint-config/      # @iln/eslint-config — shared ESLint config
 │   ├── test-utils/         # @iln/test-utils — shared test helpers
+│   ├── upgrade-tests/      # @iln/upgrade-tests — upgrade compatibility suite
+│   ├── scripts/            # Internal dev scripts and the iln-dev binary
 │   └── opentelemetry/      # @iln/opentelemetry — instrumentation
 │
 ├── workers/
@@ -149,7 +193,7 @@ Invoice-Liquidity-Network/
 │   ├── grafana/            # Grafana alerting & visualization
 │   └── cost/               # Cost tracking configuration
 │
-├── docs/                   # You are here (content source of record)
+├── docs/                   # Content source of record (legacy Nextra 2 app: not deployed)
 ├── account-seeder/         # Docker utility for seeding test accounts
 ├── contract-deployer/      # Docker utility for contract deployment
 ├── tests/
@@ -196,13 +240,16 @@ This design means the indexer always holds accurate state even if events arrive 
 
 ### Oracle Service
 
-The oracle service provides off-chain payer verification for contracts that require it:
+The oracle service provides off-chain payer verification for the
+`require_oracle_verification` funding path:
 
-- Verifies payer identity and creditworthiness against external data sources
-- Integrates with contracts using the `require_oracle_verification` flag on `fund_invoice()`
-- Caches verification results in Redis to minimize repeated queries
+- Combines on-chain behaviour heuristics with an optional advisory identity signal
+- Is consumed by the SDK/caller before `fund_invoice()`; the contract cannot call
+  an HTTP service, so the flag is honoured caller-side
+- Caches verdicts (memory or Redis) with asymmetric TTLs and last-known-good
+  degraded-mode behavior
 - Exposes verification results via REST API for frontend and SDK consumers
-- Monitors fraud signals and stale data freshness
+- Monitors fraud signals, stale data, source failover, and KYB provenance
 
 See [oracle-service.md](oracle-service.md) for detailed architecture and deployment.
 
@@ -228,7 +275,11 @@ Worker processes handle async tasks like analytics data collection:
 
 ### Contracts
 
-Three Soroban contracts are deployed, each with a distinct role:
+The contract source lives in the separate
+[ILN-Smart-Contract](https://github.com/Invoice-Liquidity-Network/ILN-Smart-Contract)
+repo and is pinned here as the `backend/` submodule. This repository does not
+build, deploy, or verify those contracts. Three contracts are defined there,
+each with a distinct role:
 
 | Contract | Role |
 |---|---|
@@ -242,9 +293,9 @@ All contracts are written in Rust and compiled to WASM for deployment on Stellar
 
 | Network | RPC URL | Status |
 |---|---|---|
-| Testnet | `https://soroban-testnet.stellar.org` | Deployed |
+| Testnet | `https://soroban-testnet.stellar.org` | Documented target; deployment owned by the contract repo |
 | Standalone | `http://localhost:8000/soroban/rpc` | Local dev via Docker |
-| Mainnet | `https://mainnet.sorobanrpc.com` | Pending audit |
+| Mainnet | `https://mainnet.sorobanrpc.com` | **Planned / pending audit** — not verified from this repo |
 
 ### Deploying a Contract
 

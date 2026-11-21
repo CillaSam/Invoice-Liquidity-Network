@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # verify-branch-protection.sh
 #
-# Verifies that GitHub branch protection settings for `main` match the
-# documented rules in docs/branch-protection.md. Uses the GitHub REST API.
+# Verifies legacy GitHub branch protection settings (the
+# /branches/{branch}/protection endpoint) against the rules documented in
+# docs/branch-protection.md. This endpoint is not populated when the repository
+# uses rulesets instead, so a 404 here means "no legacy protection", not "no
+# rules". See docs/branch-protection.md for the ruleset audit commands.
 #
 # Usage:
 #   sh scripts/verify-branch-protection.sh <owner> <repo> [branch]
