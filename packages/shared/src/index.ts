@@ -48,3 +48,10 @@ export type {
   TokenListedEvent,
   TokenDelistedEvent,
 } from './types';
+
+export {
+  isValidGAddress,
+  isValidContractId,
+  truncateAddress,
+  formatAddress,
+} from './address';
