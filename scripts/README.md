@@ -46,7 +46,10 @@ Tests mock `spawnSync` to avoid network access and verify argument construction,
 
 | Script | Purpose |
 |---|---|
-| `check-licenses.js` | Validates dependency licenses against an allowlist. Called by `dependency-audit.js licenses`. |
+| `check-licenses.js` | Validates dependency licenses against an allowlist. Called by `dependency-audit.js licenses`. Detects stale allowlist entries and stale OWN_PACKAGES exemptions. |
+| `check-dependency-confusion.mjs` | Audits pnpm lockfile for dependency confusion by dynamically discovering workspace package names and checking against all known registries. |
+| `check-commit-convention.mjs` | Validates commit / PR-title convention consistency, including edge cases for merge commits, release automation, and reverts. |
+| `check-bundle-size.js` | Checks bundle size budgets. Detects stale thresholds and guards against false success when files are missing or budgets are empty. |
 | `check-compatibility.ts` | Validates that contract, SDK, and frontend versions in `docs/cross-repo-dependencies.md` match the actual codebase. |
 | `check-bundle-size.js` | Checks bundle size budgets. |
 | `check-changeset-dependents.mjs` | Validates changeset files reference correct packages. |
