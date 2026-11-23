@@ -1,3 +1,4 @@
+import { invalidateAllInvoiceCaches } from './cache';
 import { getDb, type InvoiceFilter } from './db';
 import type { Invoice, ILNEvent } from './types';
 
@@ -357,6 +358,10 @@ export function startArchivalScheduler(intervalMs = 86400000, olderThanDays = 90
   const runTasks = () => {
     try {
       const res = archiveOldData(olderThanDays);
+      if (res.invoicesMoved > 0) {
+        // Archived invoices left the main table; drop their cached copies (#1445).
+        void invalidateAllInvoiceCaches();
+      }
       if (res.invoicesMoved > 0 || res.eventsMoved > 0) {
         console.log(
           `[archive] Automatic archive run completed. Archived ${res.invoicesMoved} invoices and ${res.eventsMoved} events.`

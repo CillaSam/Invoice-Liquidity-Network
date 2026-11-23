@@ -14,7 +14,7 @@ import {
   queryInvoicesPaginated,
   getCursorUpdatedAt,
 } from './db';
-import { cacheGet, cacheSet } from './cache';
+import { cacheGeneration, cacheGetJson, cacheSet, invalidateAllInvoiceCaches, invalidateInvoiceCache } from './cache';
 import { openApiSpec } from './openapi';
 import { createGraphQLHandler } from './graphql';
 import { createApiRateLimiter } from './rateLimit';
@@ -239,13 +239,16 @@ export function createApp(): express.Application {
     const hash = crypto.createHash('sha256').update(JSON.stringify(params)).digest('hex');
     const cacheKey = `invoices:${hash}`;
 
-    const cached = await cacheGet(cacheKey);
-    if (cached) {
+    const cached = await cacheGetJson<unknown>(cacheKey);
+    if (cached !== null) {
       cacheControl(res, 'medium');
-      res.json(JSON.parse(cached));
+      res.json(cached);
       return;
     }
 
+    // Taken before reading SQLite, so a copy read before a concurrent
+    // invalidation is never written back (#1445).
+    const generation = await cacheGeneration();
     const { invoices, hasMore, nextCursor } = queryInvoicesPaginated(
       {
         status: s || undefined,
@@ -258,7 +261,7 @@ export function createApp(): express.Application {
     );
 
     const result = { invoices, hasMore, nextCursor };
-    await cacheSet(cacheKey, JSON.stringify(result));
+    await cacheSet(cacheKey, JSON.stringify(result), undefined, generation);
     cacheControl(res, 'medium');
     res.json(result);
   });
@@ -324,13 +327,14 @@ export function createApp(): express.Application {
     }
 
     const cacheKey = `invoice:${id}`;
-    const cached = await cacheGet(cacheKey);
-    if (cached) {
+    const cached = await cacheGetJson<unknown>(cacheKey);
+    if (cached !== null) {
       cacheControl(res, 'medium');
-      res.json(JSON.parse(cached));
+      res.json(cached);
       return;
     }
 
+    const generation = await cacheGeneration();
     const invoice = getInvoiceById(id);
     if (!invoice) {
       res.status(404).json({ error: `Invoice #${id} not found` });
@@ -338,7 +342,7 @@ export function createApp(): express.Application {
     }
 
     const result = { invoice };
-    await cacheSet(cacheKey, JSON.stringify(result));
+    await cacheSet(cacheKey, JSON.stringify(result), undefined, generation);
     cacheControl(res, 'medium');
     res.json(result);
   });
@@ -378,7 +382,7 @@ export function createApp(): express.Application {
   });
 
   // POST /archive/restore/:id
-  router.post('/archive/restore/:id', (req: Request, res: Response) => {
+  router.post('/archive/restore/:id', async (req: Request, res: Response) => {
     const id = parseInt(routeParam(req, 'id'), 10);
     if (isNaN(id) || id <= 0) {
       res.status(400).json({ error: 'Invalid invoice ID - must be a positive integer' });
@@ -389,6 +393,8 @@ export function createApp(): express.Application {
       res.status(404).json({ error: `Invoice #${id} not found in archive` });
       return;
     }
+    // The invoice is back in the main table and in every list (#1445).
+    await invalidateInvoiceCache(id);
     res.json({
       success: true,
       message: `Invoice #${id} and associated events restored successfully`,
@@ -396,10 +402,12 @@ export function createApp(): express.Application {
   });
 
   // POST /archive/run
-  router.post('/archive/run', (req: Request, res: Response) => {
+  router.post('/archive/run', async (req: Request, res: Response) => {
     const olderThanDays = typeof req.body?.olderThanDays === 'number' ? req.body.olderThanDays : 90;
     try {
       const result = archiveOldData(olderThanDays);
+      // Archived invoices left the main table; cached copies must go too (#1445).
+      if (result.invoicesMoved > 0) await invalidateAllInvoiceCaches();
       res.json({ success: true, ...result });
     } catch (error: any) {
       // An out-of-range retention (negative, NaN) is a client error, not a server failure.
