@@ -1,0 +1,26 @@
+# Mainnet Go/No-Go Tabletop
+
+Issue #1330 replaces a prose-only launch checklist with a deterministic, fail-closed decision gate. The machine-readable record lives in [`docs/evidence/mainnet-go-no-go-tabletop.json`](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/blob/dev/docs/evidence/mainnet-go-no-go-tabletop.json).
+
+## Owner and recovery
+
+- **Control owner and recovery owner:** @release-lead
+- **Independent reviewers:** protocol security, liquidity controls, infrastructure failover, smart contracts, SDK, and release.
+
+A `NO_GO` result is never overridden. Resolve the listed blockers, attach fresh repository-local evidence, obtain new independent signed review, update the record, and rerun the gate. See the [operator runbook](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/blob/dev/docs/runbooks/mainnet-go-no-go-tabletop.md).
+
+## What is enforced
+
+- Seven mandatory failure scenarios: anchor-outage insolvency, LP withdrawal stress, contract pause/unpause, indexer replay recovery, notification circuit breaker, config poisoning, and governance veto.
+- Each scenario needs an expected control, observed result, existing evidence path, named owner, recovery path, and signed decision log.
+- No unresolved blockers; the record and all six sign-offs must be dated within 30 days and not in the future.
+- Reviewers must be independent of the mainnet checklist owners.
+
+## Verify locally
+
+```bash
+node scripts/hardening/mainnet-go-no-go-tabletop.mjs \
+  --as-of 2026-11-23T00:00:00.000Z
+```
+
+The `mainnet-launch-readiness` workflow runs the gate on pull requests, weekly, and on manual dispatch.

@@ -36,10 +36,25 @@ import {
   resolveEmailRecipient,
   validateEmailRecipient,
 } from './recipient';
-import { EVENT_TO_TRIGGER, getNotificationTargets } from './targets';
+import { EVENT_TO_TRIGGERS, getNotificationTargets } from './targets';
 import { isOwnershipVerified, recordBlockedDelivery } from './ownership';
 
-const KNOWN_EVENT_TYPES = new Set<ILNEventType>(['submitted', 'funded', 'paid', 'defaulted']);
+const KNOWN_EVENT_TYPES = new Set<ILNEventType>([
+  'submitted',
+  'funded',
+  'paid',
+  'defaulted',
+  'disputed',
+]);
+
+/**
+ * Legacy trigger aliases emitted alongside a canonical trigger. A subscriber
+ * who has both `payment_received` and `invoice_paid` must not receive the same
+ * chain event twice, so the legacy dispatch checks the canonical dedupe key.
+ */
+const LEGACY_TRIGGER_ALIASES: Partial<Record<NotificationTrigger, NotificationTrigger[]>> = {
+  invoice_paid: ['payment_received'],
+};
 
 /**
  * Ingest one chain event (issues #1273-#1276).
@@ -139,9 +154,14 @@ async function attemptInboundEvent(entry: InboundEvent): Promise<void> {
     }
 
     upsertInvoice(invoice);
-    const trigger = EVENT_TO_TRIGGER[entry.event_type as ILNEventType];
-    if (trigger) {
-      await dispatchNotifications(trigger, invoice, entry.event_id);
+    const triggers = EVENT_TO_TRIGGERS[entry.event_type as ILNEventType] ?? [];
+    for (const trigger of triggers) {
+      await dispatchNotifications(
+        trigger,
+        invoice,
+        entry.event_id,
+        LEGACY_TRIGGER_ALIASES[trigger] ?? []
+      );
     }
     // Dispatch is idempotent (dedup key), so a crash before this line only
     // causes a retry that re-sends nothing.
@@ -376,32 +396,57 @@ function formatPayload(
   actor: 'freelancer' | 'lp' | 'payer'
 ): { subject: string; message: string } {
   switch (trigger) {
+    case 'invoice_submitted':
+      if (actor === 'payer') {
+        return {
+          subject: `Invoice #${invoice.id} submitted`,
+          message: `Invoice #${invoice.id} for ${invoice.amount} stroops was submitted by ${
+            invoice.freelancer
+          } and is awaiting funding.`,
+        };
+      }
+      return {
+        subject: `Invoice #${invoice.id} submitted`,
+        message: `Your invoice #${invoice.id} for ${invoice.amount} stroops was submitted. It is awaiting funding.`,
+      };
     case 'invoice_funded':
       if (actor === 'freelancer') {
         return {
           subject: `Invoice #${invoice.id} funded`,
-          message: `Your invoice #${invoice.id} has been funded for ${invoice.amount} stroops.`,
+          message: `Your invoice #${invoice.id} has been funded for ${invoice.amount} stroops by ${
+            invoice.funder ?? invoice.payer
+          }. You can begin work.`,
         };
       }
       return {
         subject: `Invoice #${invoice.id} funding reminder`,
-        message: `Invoice #${invoice.id} is funded and payment is due.`,
+        message: `Invoice #${invoice.id} is funded for ${invoice.amount} stroops and payment is due at ${new Date(
+          invoice.due_date * 1000
+        ).toISOString()}.`,
       };
+    case 'payment_received':
     case 'invoice_paid':
       if (actor === 'lp') {
         return {
-          subject: `Invoice #${invoice.id} has been paid`,
-          message: `Invoice #${invoice.id} was settled. Your loan has been repaid.`,
+          subject: `Payment received for invoice #${invoice.id}`,
+          message: `Invoice #${invoice.id} was settled for ${invoice.amount} stroops. Your loan has been repaid.`,
         };
       }
       return {
-        subject: `Invoice #${invoice.id} paid`,
-        message: `Invoice #${invoice.id} has been marked as paid.`,
+        subject: `Payment received for invoice #${invoice.id}`,
+        message: `Payment of ${invoice.amount} stroops was received for invoice #${invoice.id}. The invoice is now paid.`,
+      };
+    case 'dispute_opened':
+      return {
+        subject: `Dispute opened for invoice #${invoice.id}`,
+        message: `A dispute was opened on invoice #${invoice.id} for ${invoice.amount} stroops. Review the case and submit evidence before the response deadline.`,
       };
     case 'invoice_defaulted':
       return {
         subject: `Invoice #${invoice.id} defaulted`,
-        message: `Invoice #${invoice.id} has defaulted and requires attention.`,
+        message: `Invoice #${invoice.id} for ${invoice.amount} stroops defaulted at ${new Date(
+          invoice.due_date * 1000
+        ).toISOString()}. The liquidity provider may claim default.`,
       };
     case 'invoice_due_soon':
       return {
@@ -413,7 +458,7 @@ function formatPayload(
     case 'invoice_overdue':
       return {
         subject: `Invoice #${invoice.id} overdue`,
-        message: `Invoice #${invoice.id} is overdue. Payment is now past due.`,
+        message: `Invoice #${invoice.id} is overdue. Payment of ${invoice.amount} stroops is now past due.`,
       };
     default:
       return {
@@ -424,9 +469,12 @@ function formatPayload(
 }
 
 const TRIGGER_TO_EVENT_TYPE: Record<NotificationTrigger, ILNEventType | null> = {
+  invoice_submitted: 'submitted',
   invoice_funded: 'funded',
+  payment_received: 'paid',
   invoice_paid: 'paid',
   invoice_defaulted: 'defaulted',
+  dispute_opened: 'disputed',
   invoice_due_soon: null,
   invoice_overdue: null,
 };
@@ -438,7 +486,8 @@ function triggerToEventType(trigger: NotificationTrigger): ILNEventType | undefi
 async function dispatchNotifications(
   trigger: NotificationTrigger,
   invoice: Invoice,
-  eventId?: string
+  eventId?: string,
+  dedupeAliases: NotificationTrigger[] = []
 ): Promise<void> {
   const targets = getNotificationTargets(trigger, invoice);
   for (const target of targets) {
@@ -514,13 +563,18 @@ async function dispatchNotifications(
     );
 
     for (const subscription of matchingSubscriptions) {
-      const alreadySent = hasSentNotification(
-        invoice.id,
-        trigger,
-        target.recipient,
-        subscription.channel,
-        dispatchDestinationOf(subscription)
-      );
+      const destination = dispatchDestinationOf(subscription);
+      const alreadySent =
+        hasSentNotification(
+          invoice.id,
+          trigger,
+          target.recipient,
+          subscription.channel,
+          destination
+        ) ||
+        dedupeAliases.some((alias) =>
+          hasSentNotification(invoice.id, alias, target.recipient, subscription.channel, destination)
+        );
       if (alreadySent) {
         continue;
       }
@@ -584,7 +638,9 @@ async function dispatchNotifications(
             let usedDestination = dispatchDestinationOf(subscription);
             if (fbResult.fallbackChannel) {
               const fallbackSubs = getSubscriptionsByAddress(target.recipient).filter(
-                (s) => s.channel === fbResult.fallbackChannel && s.triggers.includes(trigger)
+                (s) =>
+                  s.channel === fbResult.fallbackChannel &&
+                  s.triggers.some((value) => value === trigger || dedupeAliases.includes(value))
               );
               if (fallbackSubs.length > 0) usedDestination = dispatchDestinationOf(fallbackSubs[0]);
             }
@@ -641,7 +697,9 @@ async function dispatchNotifications(
             let usedDestination = dispatchDestinationOf(subscription);
             if (fbResult.fallbackChannel) {
               const fallbackSubs = getSubscriptionsByAddress(target.recipient).filter(
-                (s) => s.channel === fbResult.fallbackChannel && s.triggers.includes(trigger)
+                (s) =>
+                  s.channel === fbResult.fallbackChannel &&
+                  s.triggers.some((value) => value === trigger || dedupeAliases.includes(value))
               );
               if (fallbackSubs.length > 0) usedDestination = dispatchDestinationOf(fallbackSubs[0]);
             }

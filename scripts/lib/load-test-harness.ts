@@ -371,7 +371,7 @@ export function getNotificationRequests(baseUrl: string): TestRequest[] {
         stellar_address: randomAddress,
         channel: 'webhook',
         destination: `https://example.com/webhook/${Math.random().toString(36).substring(7)}`,
-        triggers: ['invoice_funded', 'invoice_paid'],
+        triggers: ['invoice_funded', 'payment_received', 'invoice_paid'],
         webhook_secret: 'loadtest-secret-key',
       }),
     },

@@ -210,7 +210,13 @@ const notifications = new NotificationsClient("http://localhost:4001");
 const emailSub = await notifications.subscribeEmail(
   "G...",
   "user@example.com",
-  [NotificationTrigger.InvoiceFunded, NotificationTrigger.InvoiceSettled]
+  [
+    NotificationTrigger.InvoiceSubmitted,
+    NotificationTrigger.InvoiceFunded,
+    NotificationTrigger.PaymentReceived,
+    NotificationTrigger.DisputeOpened,
+    NotificationTrigger.InvoiceDefaulted,
+  ]
 );
 
 // Subscribe to webhook
@@ -227,9 +233,22 @@ console.log(testResult.success); // true
 // List subscriptions
 const subs = await notifications.listSubscriptions("G...");
 
+// Render and persist a lifecycle notification locally
+const record = notifications.handleInvoiceEvent({
+  eventId: "evt-123",
+  type: "disputed",
+  invoice: { id: 42, amount: "10000000", payer: "GPAYER..." },
+});
+console.log(record.subject);  // "Invoice #42 dispute opened"
+console.log(notifications.notifications.list());
+
 // Unsubscribe
 await notifications.unsubscribe(emailSub.id);
 ```
+
+`NotificationTrigger` covers invoice submitted, funded, payment received,
+defaulted, and dispute opened, plus the due-soon/overdue schedule triggers.
+`InvoiceSettled` remains a legacy alias for `invoice_paid`.
 
 ## Analytics (opt-in)
 

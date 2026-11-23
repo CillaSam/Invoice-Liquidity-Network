@@ -67,6 +67,8 @@
     "title": "Operations"
   },
   "mainnet-launch-checklist": "Mainnet Launch Checklist",
+  "on-call-escalation-handoff": "On-call Escalation and Handoff",
+  "mainnet-go-no-go-tabletop": "Mainnet Go/No-Go Tabletop",
   "mainnet-deployment-dry-run": "Mainnet Deployment Dry Run",
   "emergency-pause-rehearsal": "Emergency Pause Rehearsal",
   "monitoring": "Monitoring",

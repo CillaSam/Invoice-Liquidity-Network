@@ -58,6 +58,8 @@ rfcs/                        @Invoice-Liquidity-Network/maintainers
 
 # Security policy — security lead must review any changes
 SECURITY.md                  @Invoice-Liquidity-Network/security-lead
+.github/ISSUE_TEMPLATE/security-private-channel.md @Invoice-Liquidity-Network/security-lead
+docs/vulnerability-disclosure.md @Invoice-Liquidity-Network/security-lead
 gitleaks.toml                @Invoice-Liquidity-Network/security-lead
 .secrets.baseline            @Invoice-Liquidity-Network/security-lead
 

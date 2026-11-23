@@ -1,0 +1,190 @@
+{
+  "schemaVersion": "mainnet-go-no-go-tabletop/v1",
+  "control": "mainnet-go-no-go-tabletop",
+  "issue": 1330,
+  "mode": "deterministic-rehearsal",
+  "rehearsalNote": "This record is the seeded, fail-closed tabletop rehearsal for the validator. Before a real mainnet GO, the release lead must replace the role-based reviewer handles with named independent reviewers and re-attest every scenario against fresh evidence; the validator itself does not execute infrastructure.",
+  "owner": "@release-lead",
+  "decision": "GO",
+  "executedAt": "2026-11-20T00:00:00.000Z",
+  "checklistRevision": "upstream/dev@1ffd4b6",
+  "validator": "scripts/hardening/mainnet-go-no-go-tabletop.mjs",
+  "runbook": "docs/runbooks/mainnet-go-no-go-tabletop.md",
+  "metrics": {
+    "evaluations": "iln_go_no_go_tabletop_evaluations_total",
+    "failures": "iln_go_no_go_tabletop_failures_total",
+    "blockers": "iln_go_no_go_blockers_total",
+    "decisions": "iln_go_no_go_decisions"
+  },
+  "baseline": {
+    "before": "No signed go/no-go tabletop, no required scenario set, no independent reviewer enforcement, and no machine-checkable decision record.",
+    "after": "Seven mandatory scenarios, six independent reviewer areas, blocker/staleness/evidence checks, and a deterministic GO/NO_GO record that fails closed in CI."
+  },
+  "recovery": "NO_GO: resolve the listed blocker(s), attach fresh repository-local evidence, obtain new independent Signed review, update this record, and rerun the gate.",
+  "blockers": [],
+  "scenarios": [
+    {
+      "id": "anchor-outage-insolvency",
+      "status": "PASS",
+      "decision": "GO",
+      "expectedControl": "Anchor/price oracle outage must halt new funding and prevent insolvent invoice acceptance.",
+      "observedResult": "Oracle rollback and containment drill keeps funding blocked until a healthy anchor feed returns.",
+      "evidencePath": "docs/evidence/kyb-outage-containment-drill.md",
+      "owner": "@oracle-lead",
+      "recoveryPath": "Freeze new funding, restore the last known-good oracle feed, and replay the drill before resuming.",
+      "decisionLog": [
+        {
+          "at": "2026-11-20T00:00:00.000Z",
+          "actor": "@tabletop-lead",
+          "outcome": "GO"
+        }
+      ]
+    },
+    {
+      "id": "lp-withdrawal-stress",
+      "status": "PASS",
+      "decision": "GO",
+      "expectedControl": "Concurrent LP withdrawals must not block settlement or breach liquidity coverage.",
+      "observedResult": "Stress scenario stays within the documented treasury coverage and withdrawal containment limits.",
+      "evidencePath": "docs/evidence/launch-critical-drills-evidence-retention.md",
+      "owner": "@liquidity-lead",
+      "recoveryPath": "Throttle withdrawals, draw the liquidity buffer, and re-run the stress scenario before GO.",
+      "decisionLog": [
+        {
+          "at": "2026-11-20T00:00:00.000Z",
+          "actor": "@tabletop-lead",
+          "outcome": "GO"
+        }
+      ]
+    },
+    {
+      "id": "contract-pause-unpause",
+      "status": "PASS",
+      "decision": "GO",
+      "expectedControl": "Emergency pause and unpause paths must be reachable, authorized, and reversible.",
+      "observedResult": "Feature-disable/kill-switch paths behave as documented and preserve an auditable trail.",
+      "evidencePath": "docs/evidence/emergency-feature-disable-paths.md",
+      "owner": "@protocol-lead",
+      "recoveryPath": "Keep the contract paused, restore the authorized operator path, and re-rehearse unpause.",
+      "decisionLog": [
+        {
+          "at": "2026-11-20T00:00:00.000Z",
+          "actor": "@tabletop-lead",
+          "outcome": "GO"
+        }
+      ]
+    },
+    {
+      "id": "indexer-replay-recovery",
+      "status": "PASS",
+      "decision": "GO",
+      "expectedControl": "A stalled or corrupt indexer cursor must be recoverable within the documented RTO.",
+      "observedResult": "Replay reproduces state within the recorded recovery-time objective.",
+      "evidencePath": "docs/evidence/indexer-recovery-time-objective.md",
+      "owner": "@infrastructure-lead",
+      "recoveryPath": "Restore from WAL snapshot, replay from the last good ledger, and verify cursor parity.",
+      "decisionLog": [
+        {
+          "at": "2026-11-20T00:00:00.000Z",
+          "actor": "@tabletop-lead",
+          "outcome": "GO"
+        }
+      ]
+    },
+    {
+      "id": "notification-circuit-breaker",
+      "status": "PASS",
+      "decision": "GO",
+      "expectedControl": "Notification provider failure must trigger fallback and dead-letter replay without duplicate delivery.",
+      "observedResult": "Provider outage replay stays within the notification recovery SLO with deduplicated delivery.",
+      "evidencePath": "docs/evidence/notification-recovery-replay-slo.md",
+      "owner": "@notifications-lead",
+      "recoveryPath": "Open the circuit, drain the DLQ after provider recovery, and verify no duplicate sends.",
+      "decisionLog": [
+        {
+          "at": "2026-11-20T00:00:00.000Z",
+          "actor": "@tabletop-lead",
+          "outcome": "GO"
+        }
+      ]
+    },
+    {
+      "id": "config-poisoning",
+      "status": "PASS",
+      "decision": "GO",
+      "expectedControl": "Unauthorized or malformed configuration changes must be rejected before deployment.",
+      "observedResult": "Readiness review controls reject poisoned config and preserve the owned recovery path.",
+      "evidencePath": "docs/evidence/operational-readiness-review-controls.md",
+      "owner": "@security-lead",
+      "recoveryPath": "Revert the release to the last signed configuration and rerun the readiness gate.",
+      "decisionLog": [
+        {
+          "at": "2026-11-20T00:00:00.000Z",
+          "actor": "@tabletop-lead",
+          "outcome": "GO"
+        }
+      ]
+    },
+    {
+      "id": "governance-veto",
+      "status": "PASS",
+      "decision": "GO",
+      "expectedControl": "A governance veto must block the release path and leave an auditable decision trail.",
+      "observedResult": "Wave-9 operations controls retain the veto/block decision and an owner for recovery.",
+      "evidencePath": "docs/evidence/wave-9-operations-hardening-evidence.json",
+      "owner": "@governance-lead",
+      "recoveryPath": "Honour the veto, record the blocking finding, and re-run the tabletop only after resolution.",
+      "decisionLog": [
+        {
+          "at": "2026-11-20T00:00:00.000Z",
+          "actor": "@tabletop-lead",
+          "outcome": "GO"
+        }
+      ]
+    }
+  ],
+  "reviewers": [
+    {
+      "area": "protocol-security",
+      "name": "@reviewer-protocol-security",
+      "relationship": "independent",
+      "signoff": "Signed",
+      "signedAt": "2026-11-21T00:00:00.000Z"
+    },
+    {
+      "area": "liquidity-controls",
+      "name": "@reviewer-liquidity-controls",
+      "relationship": "independent",
+      "signoff": "Signed",
+      "signedAt": "2026-11-21T00:00:00.000Z"
+    },
+    {
+      "area": "infrastructure-failover",
+      "name": "@reviewer-infrastructure-failover",
+      "relationship": "independent",
+      "signoff": "Signed",
+      "signedAt": "2026-11-21T00:00:00.000Z"
+    },
+    {
+      "area": "smart-contracts",
+      "name": "@reviewer-smart-contracts",
+      "relationship": "independent",
+      "signoff": "Signed",
+      "signedAt": "2026-11-21T00:00:00.000Z"
+    },
+    {
+      "area": "sdk",
+      "name": "@reviewer-sdk",
+      "relationship": "independent",
+      "signoff": "Signed",
+      "signedAt": "2026-11-21T00:00:00.000Z"
+    },
+    {
+      "area": "release",
+      "name": "@reviewer-release",
+      "relationship": "independent",
+      "signoff": "Signed",
+      "signedAt": "2026-11-21T00:00:00.000Z"
+    }
+  ]
+}

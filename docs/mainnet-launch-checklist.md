@@ -3,7 +3,7 @@
 This checklist tracks the requirements that must be verified before ILN mainnet deployment. Each item has an owner, a planning status, a context link, and a repository-local verification artifact. Status alone never establishes launch readiness.
 
 Checklist owner: Release lead
-Last reviewed: 2026-10-19
+Last reviewed: 2026-11-23
 Freshness window: 30 days
 
 Status values:
@@ -81,6 +81,8 @@ The exception process itself is verified by the existence of:
 | Monitoring configured | Configure alerts for RPC health, indexer lag, notification failures, webhook delivery errors, and CI release failures. | Infrastructure lead | Done | [Monitoring configuration](monitoring.md) | [Monitoring configuration](monitoring.md) |
 | Backups verified | Restore indexer backup artifacts in a clean environment and document recovery time. | Infrastructure lead | Done | [Indexer backup restore verification](indexer/backup-archive.md#restore-verification) | [Backup restore verification](indexer/backup-archive.md#restore-verification) |
 | Release provenance verified | Verify npm package provenance and GitHub release artifacts before mainnet announcement. | Release lead | Done | [Provenance audit & procedure](release-process.md#package-provenance-verification-issue-878) | [Provenance procedure](release-process.md#package-provenance-verification-issue-878) |
+| On-call escalation and handoff checklist published | Maintain a named owner, tested P1 escalation path, and current 7-day handoff for mainnet operations. | Infrastructure lead | In progress | [On-call escalation and handoff](../packages/docs/content/on-call-escalation-handoff.mdx) ([#1329](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/issues/1329)) | [On-call checklist manifest](../ops/on-call-checklist.json) |
+| Independent go/no-go tabletop recorded | Rehearse seven launch failure scenarios with independent reviewers and a fail-closed GO/NO_GO decision record. | Release lead | In progress | [Mainnet go/no-go tabletop runbook](runbooks/mainnet-go-no-go-tabletop.md) ([#1330](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/issues/1330)) | [Tabletop decision record](evidence/mainnet-go-no-go-tabletop.json) |
 
 ## Documentation
 

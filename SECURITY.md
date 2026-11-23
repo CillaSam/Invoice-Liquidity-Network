@@ -32,12 +32,42 @@ Security fixes are provided for the latest major version of each maintained ILN 
 
 Please report suspected vulnerabilities privately. Do not open a public issue, discussion, or pull request with exploit details before the maintainers have investigated and shipped any necessary fix.
 
-Use either reporting channel:
+### Current channel status
 
-- Email: `security@invoiceliquidity.network`
-- GitHub: open a private GitHub Security Advisory for the affected ILN repository
+| Channel | Status | Reporter action |
+| --- | --- | --- |
+| `security@invoiceliquidity.network` | **Unusable** — the domain has no DNS/MX records, so mail cannot be routed. Do not use it. | Use the private-channel request below. |
+| GitHub private vulnerability reporting at `/security/advisories/new` | **Unavailable to non-collaborators** while the repository setting is disabled (the URL returns 404). | Use the private-channel request below. |
+| [Private security channel request](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/issues/new?template=security-private-channel.md) | Working intake for outside researchers. | Open a detail-free issue with only your GitHub username. |
 
-Include as much of the following as you can:
+If you are not a repository collaborator, open a
+[private security channel request](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/issues/new?template=security-private-channel.md).
+The issue is public: include **only** your GitHub username. Do not include the
+finding, affected function, severity, proof of concept, transaction hashes, or
+links to private gists/forks.
+
+A maintainer will open a private draft security advisory, add your GitHub
+username as a collaborator, and reply on the public issue asking you to
+continue in the advisory. Submit the full report there.
+
+### Opening a private channel for a reporter (maintainers)
+
+1. Do not request or accept vulnerability details in the public issue.
+2. Go to **Security → Advisories → New draft security advisory**, create a
+   private draft, and add the reporter's GitHub username under **Collaborators**.
+3. Reply on the issue only with: “We opened a private advisory and added you as
+   a collaborator — please continue there.” Close or lock the issue if needed.
+4. The 48-hour acknowledgement target starts when the report is posted inside
+   the private advisory, not when the public intake issue is opened.
+5. If no maintainer with advisory-create access responds within 48 hours,
+   escalate through the existing maintainer channel; the reporter should not
+   post details publicly.
+
+Enabling self-service private vulnerability reporting or provisioning a real
+security mailbox remains a repository-owner action. Until then, this
+maintainer-mediated path is the supported private disclosure route.
+
+Include as much of the following as you can **inside the private advisory**:
 
 - Affected component, version, branch, commit, contract ID, or deployment environment
 - Impact summary, including whether funds, signatures, private data, or service availability are affected
@@ -87,7 +117,7 @@ ILN supports good-faith security research. We will not pursue legal action or re
 - Uses the minimum access needed to verify the vulnerability
 - Does not move, drain, or permanently lock funds
 - Does not disclose details publicly before maintainers have completed coordinated remediation
-- Reports findings promptly through the private channels above
+- Reports findings promptly through the supported private disclosure route above
 
 Safe harbour does not cover extortion, social engineering, phishing, physical attacks, malware, spam, or attempts to access unrelated third-party systems.
 

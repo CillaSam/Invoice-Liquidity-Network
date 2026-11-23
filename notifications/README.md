@@ -31,11 +31,15 @@ Decodes each contract event via `scValToNative`, deduplicates by event ID, journ
 
 | Event Type | Trigger | Recipients |
 |---|---|---|
+| `submitted` | `invoice_submitted` | Freelancer, Payer |
 | `funded` | `invoice_funded` | Freelancer, Payer |
-| `paid` | `invoice_paid` | Freelancer, LP (funder) |
+| `paid` | `payment_received` plus legacy `invoice_paid` | Freelancer, LP (funder) |
 | `defaulted` | `invoice_defaulted` | LP (funder) |
+| `disputed` | `dispute_opened` | Freelancer, Payer, LP (funder) |
 | — | `invoice_due_soon` | LP (funded invoices due within `DUE_WARNING_HOURS`) |
 | — | `invoice_overdue` | Payer |
+
+`invoice_paid` remains accepted for existing subscriptions. It is emitted alongside `payment_received`, and the dedupe key prevents a subscriber registered for both from receiving duplicate copies on the same channel.
 
 ### Delivery (`src/delivery.ts`)
 

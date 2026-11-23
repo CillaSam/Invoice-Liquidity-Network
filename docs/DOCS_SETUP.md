@@ -61,6 +61,8 @@ the `check-meta-nav` job of `docs-deploy.yml`). The check fails when:
 - [x] Notifications API (`docs/notifications.md` → `packages/docs/content/api-reference/notifications.mdx`)
 - [x] Soroban RPC reference (`docs/indexer/api-reference.md` → `packages/docs/content/api-reference/soroban-rpc.mdx`)
 - [x] Documentation versioning (`docs/versioning.md` → `packages/docs/content/versioning.mdx`)
+- [x] On-call escalation and handoff (`docs/runbooks/on-call-escalation-handoff.md` → `packages/docs/content/on-call-escalation-handoff.mdx`)
+- [x] Mainnet go/no-go tabletop (`docs/runbooks/mainnet-go-no-go-tabletop.md` → `packages/docs/content/mainnet-go-no-go-tabletop.mdx`)
 
 ### Remaining content to port
 
@@ -203,6 +205,8 @@ the `check-meta-nav` job of `docs-deploy.yml`). The check fails when:
 - `docs/DOCS_SETUP.md` — this maintainer guide; removed with the legacy site
 - `docs/CHANGELOG_IMPLEMENTATION.md` — implementation notes for the changelog workflow, not reader-facing
 - `docs/security.md` — redirect stub to the root `SECURITY.md`
+- `docs/on-call-escalation-handoff.md` — legacy-navigation stub; canonical page and operator runbook already ported
+- `docs/mainnet-go-no-go-tabletop.md` — legacy-navigation stub; canonical page and operator runbook already ported
 - `docs/evidence/launch-exceptions.md` — launch exceptions register; evidence artifact, not reader-facing content
 
 ### Post-migration cleanup

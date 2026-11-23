@@ -258,7 +258,7 @@ See [oracle-service.md](oracle-service.md) for detailed architecture and deploym
 The notifications service watches the same contract events and dispatches alerts to subscribers:
 
 - Supports `email` (via Resend), `webhook`, and `SMS` channels
-- Triggers: `invoice_funded`, `invoice_paid`, `invoice_defaulted`, `invoice_due_soon`, `invoice_overdue`
+- Triggers: `invoice_submitted`, `invoice_funded`, `payment_received`, `invoice_paid` (legacy alias), `invoice_defaulted`, `dispute_opened`, `invoice_due_soon`, `invoice_overdue`
 - Rate-limited to 10 notifications per minute per address, with 3 retry attempts on delivery failure
 
 ### Background Workers

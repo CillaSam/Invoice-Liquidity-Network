@@ -1,0 +1,36 @@
+# On-call Escalation and Handoff
+
+Issue #1329 adds a fail-closed operational control for mainnet readiness. The
+source of truth is [`ops/on-call-checklist.json`](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/blob/dev/ops/on-call-checklist.json).
+
+## Control owner and recovery
+
+- **Control owner:** @infrastructure-lead
+- **On-call first responder:** @sre-oncall
+- **Secondary/recovery owner:** @devops-oncall
+- **Escalation owner:** @security-lead
+
+If the check fails, do not bypass it. Follow the recovery table in the
+[operator runbook](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/blob/dev/docs/runbooks/on-call-escalation-handoff.md),
+then rerun the gate.
+
+## What is enforced
+
+- Every ownership role is named and free of placeholders.
+- Acknowledgement (15 min) and P1 escalation (15 min) targets are enforced.
+- The next handoff date must equal the last handoff plus the rotation interval.
+- A handoff past its due date fails the build; a handoff inside the warning
+  window produces a non-failing warning.
+- Every checklist item has a unique id, an owner, and a live runbook anchor.
+- This page, the legacy docs nav entry, and the mainnet checklist artifact link
+  must all exist.
+
+## Verify locally
+
+```bash
+node scripts/hardening/on-call-escalation-handoff.mjs --as-of 2026-11-23
+```
+
+For active incidents, use `#incident-response`, the existing
+`ALERT_WEBHOOK_URL` pager, and the
+[Incident Response Runbook](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/blob/dev/docs/incident-response.md).

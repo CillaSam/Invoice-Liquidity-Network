@@ -5,9 +5,21 @@ on:
     paths:
       - 'docs/mainnet-launch-checklist.md'
       - 'docs/DOCS_SETUP.md'
+      - 'docs/evidence/mainnet-go-no-go-tabletop.json'
+      - 'docs/runbooks/on-call-escalation-handoff.md'
+      - 'docs/runbooks/mainnet-go-no-go-tabletop.md'
+      - 'ops/on-call-checklist.json'
+      - 'packages/docs/content/on-call-escalation-handoff.mdx'
+      - 'packages/docs/content/mainnet-go-no-go-tabletop.mdx'
       - 'scripts/check-mainnet-launch-readiness.mjs'
+      - 'scripts/hardening/on-call-escalation-handoff.mjs'
+      - 'scripts/hardening/mainnet-go-no-go-tabletop.mjs'
       - 'scripts/__tests__/mainnet-launch-readiness.test.js'
+      - 'scripts/__tests__/on-call-escalation-handoff.test.mjs'
+      - 'scripts/__tests__/mainnet-go-no-go-tabletop.test.mjs'
       - '.github/workflows/mainnet-launch-readiness.yml'
+  schedule:
+    - cron: '17 6 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -23,6 +35,9 @@ jobs:
       - name: Validate checklist control tests
         run: node --test scripts/__tests__/mainnet-checklist-parser.test.js scripts/__tests__/mainnet-launch-readiness.test.js
 
+      - name: Validate on-call and go/no-go control tests
+        run: node --test scripts/__tests__/on-call-escalation-handoff.test.mjs scripts/__tests__/mainnet-go-no-go-tabletop.test.mjs
+
       - name: Validate checklist metadata and evidence
         if: github.event_name == 'pull_request'
         run: node scripts/check-mainnet-launch-readiness.mjs --report mainnet-checklist-readiness.json
@@ -31,10 +46,25 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: node scripts/check-mainnet-launch-readiness.mjs --rehearsal --report mainnet-checklist-readiness.json
 
+      - name: Enforce on-call handoff and go/no-go controls
+        run: |
+          node scripts/hardening/on-call-escalation-handoff.mjs --report on-call-handoff-readiness.json
+          node scripts/hardening/mainnet-go-no-go-tabletop.mjs --report mainnet-go-no-go-tabletop.json
+
       - name: Upload readiness evidence
         if: always() && hashFiles('mainnet-checklist-readiness.json') != ''
         uses: actions/upload-artifact@v4
         with:
           name: mainnet-checklist-readiness-${{ github.run_id }}
           path: mainnet-checklist-readiness.json
+          if-no-files-found: error
+
+      - name: Upload on-call and go/no-go evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: launch-controls-${{ github.run_id }}
+          path: |
+            on-call-handoff-readiness.json
+            mainnet-go-no-go-tabletop.json
           if-no-files-found: error

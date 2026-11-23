@@ -35,9 +35,11 @@ For the complete SDK trust model — including trust assumptions per component, 
 The disclosure policy — how to report, what to include, severity classification, response
 timelines, safe harbour, and recognition — is defined once, canonically, in the repository root
 [`SECURITY.md`](../SECURITY.md). For the reporter-facing entryway, see the
-[Vulnerability Disclosure Policy](./vulnerability-disclosure.md). Report through one of the
-channels listed there (a private GitHub Security Advisory or
-`security@invoiceliquidity.network`) rather than a public issue or pull request.
+[Vulnerability Disclosure Policy](./vulnerability-disclosure.md). Use only the currently
+working channel listed in `SECURITY.md`: the detail-free
+[private security channel request](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/issues/new?template=security-private-channel.md).
+Do not send reports to `security@invoiceliquidity.network` (no DNS/MX records) and do not
+rely on self-service GitHub advisories (404 for non-collaborators).
 
 ---
 
@@ -276,7 +278,7 @@ Monitor service health using `scripts/monitor.sh`. Integrate it into your CI and
 - Unexpected fund movements on-chain.
 - Health check failures for the indexer or notifications service.
 - Anomalous error rates in SDK operations.
-- Reports from users via GitHub Security Advisories or the security email.
+- Reports from users through the private disclosure route in [`SECURITY.md`](../SECURITY.md).
 
 ### Step 2 — Contain
 
@@ -286,8 +288,8 @@ Monitor service health using `scripts/monitor.sh`. Integrate it into your CI and
 
 ### Step 3 — Report
 
-- Open a private GitHub Security Advisory immediately, even if the full scope is unknown.
-- Notify the security team at security@invoiceliquidity.network with the initial assessment.
+- Use the private-channel process in [`SECURITY.md`](../SECURITY.md); maintainers open the draft advisory and add the reporter.
+- Ask the reporter to move the full initial assessment into that private advisory; do not request details in a public issue.
 - Do not post details in public channels (Discord, Twitter, GitHub Issues) until a fix is deployed.
 
 ### Step 4 — Remediate

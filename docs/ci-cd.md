@@ -747,7 +747,7 @@ touches a workflow. "Concurrency" is `cancel superseded` (`cancel-in-progress: t
 | [`local-dev-docs.yml`](../.github/workflows/local-dev-docs.yml) | `pull_request`, `push`, `schedule`, `workflow_dispatch` | `contents: read` | cancel superseded |
 | [`mainnet-checklist-status.yml`](../.github/workflows/mainnet-checklist-status.yml) | `issues`, `workflow_dispatch` | `contents: write`, `pull-requests: write`, `issues: read` | — |
 | [`mainnet-launch-evidence.yml`](../.github/workflows/mainnet-launch-evidence.yml) | `pull_request`, `workflow_dispatch` | `contents: read` | — |
-| [`mainnet-launch-readiness.yml`](../.github/workflows/mainnet-launch-readiness.yml) | `pull_request`, `workflow_dispatch` | `contents: read` | — |
+| [`mainnet-launch-readiness.yml`](../.github/workflows/mainnet-launch-readiness.yml) | `pull_request`, `schedule`, `workflow_dispatch` | `contents: read` | — |
 | [`malware-indicators.yml`](../.github/workflows/malware-indicators.yml) | `pull_request`, `push`, `schedule`, `workflow_dispatch` | `contents: read` | cancel superseded |
 | [`monorepo-map-drift.yml`](../.github/workflows/monorepo-map-drift.yml) | `pull_request`, `push`, `schedule`, `workflow_dispatch` | `contents: read` | cancel superseded |
 | [`mutation-testing.yml`](../.github/workflows/mutation-testing.yml) | `schedule`, `workflow_dispatch`, `pull_request` | `contents: read`, `pull-requests: write` | cancel superseded |

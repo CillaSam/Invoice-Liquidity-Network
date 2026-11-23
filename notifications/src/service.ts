@@ -49,9 +49,17 @@ const WEBHOOK_MAX_RETRIES = 3;
 
 // Which event types each actor role should receive
 const ROLE_EVENT_ALLOWLIST: Record<ActorRole, string[]> = {
-  freelancer: ['funded', 'paid', 'defaulted', 'due_date_warning'],
-  lp: ['funded', 'paid', 'defaulted'],
-  payer: ['funded', 'paid'],
+  freelancer: [
+    'submitted',
+    'funded',
+    'paid',
+    'payment_received',
+    'defaulted',
+    'disputed',
+    'due_date_warning',
+  ],
+  lp: ['funded', 'paid', 'payment_received', 'defaulted', 'disputed'],
+  payer: ['submitted', 'funded', 'paid', 'payment_received', 'disputed'],
 };
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -161,11 +169,15 @@ export class NotificationService {
 
   private buildEmailSubject(event: InvoiceEvent): string {
     switch (event.type) {
+      case 'submitted':
+        return `Invoice #${event.invoiceId} submitted`;
       case 'funded':
         return buildFundedSubject(event);
       case 'paid':
+      case 'payment_received':
         return buildPaymentSubject(event);
       case 'defaulted':
+      case 'disputed':
         return buildDisputeSubject(event);
       case 'due_date_warning':
         return buildDueWarningSubject(event);
@@ -177,17 +189,20 @@ export class NotificationService {
   private buildEmailBody(role: string, event: InvoiceEvent): string {
     const actorRole = role as ActorRole;
     switch (event.type) {
+      case 'submitted':
       case 'funded':
         return renderFundedEmail({
           event,
           recipientRole: actorRole === 'payer' ? 'payer' : 'freelancer',
         });
       case 'paid':
+      case 'payment_received':
         return renderPaymentEmail({
           event,
           recipientRole: actorRole === 'lp' ? 'lp' : 'freelancer',
         });
       case 'defaulted':
+      case 'disputed':
         return renderDisputeEmail({
           event,
           recipientRole: actorRole === 'lp' ? 'lp' : 'freelancer',

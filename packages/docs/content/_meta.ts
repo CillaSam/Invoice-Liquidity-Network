@@ -23,6 +23,14 @@ export default {
     title: 'Launch Communications Evidence',
     type: 'page',
   },
+  'on-call-escalation-handoff': {
+    title: 'On-call Escalation and Handoff',
+    type: 'page',
+  },
+  'mainnet-go-no-go-tabletop': {
+    title: 'Mainnet Go/No-Go Tabletop',
+    type: 'page',
+  },
   'frontend-guide': {
     title: 'Frontend Guide',
     type: 'page',
