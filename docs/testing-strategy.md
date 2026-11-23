@@ -191,3 +191,36 @@ A PR should explain new or changed test coverage when the behavior is non-trivia
 - If a snapshot, migration, benchmark, or mutation score changed, was the change intentional?
 
 For more detail on local setup and existing test tooling, see [Local Development](local-development.md), [E2E Test Scope](e2e-test-scope.md), [SDK E2E](sdk-e2e.md), [Load Test Harness](load-test-harness.md), and [Mutation Testing](mutation-testing.md).
+
+## CI Job Mapping
+
+This section maps the test types from the [Test inventory](#test-inventory) to the concrete GitHub Actions workflows that run them on every PR or on a schedule.
+
+| Test type | CI workflow | Trigger | Notes |
+| --- | --- | --- | --- |
+| Unit tests (TypeScript) | `.github/workflows/ci.yml` (via `pnpm test` / Turbo) | Every PR | Path-triggered; runs for affected workspaces only. Backend Rust unit tests in separate `test` job. |
+| Contract unit tests (Rust) | `.github/workflows/ci.yml` (backend `test` job) | Every PR when `backend/` changes | Runs `cargo test` in the backend workspace. |
+| Integration tests | `.github/workflows/ci.yml` or specific workflow | Every PR (some selective) | Included in `pnpm test` via Turbo for workspace integration tests; some require local services and may be PR-triggered. |
+| Database and migration tests | `.github/workflows/indexer-migrations.yml` | Every PR affecting `indexer/` schema | Runs `indexer/tests/migrations.test.ts` and validates upgrade paths. |
+| Schema-snapshot tests (GraphQL) | `.github/workflows/ci.yml` (indexer tests) | Every PR affecting `indexer/` resolvers | Included in `pnpm test` for indexer; snapshots are reviewed as part of the PR. |
+| Configuration/schema-drift tests | `.github/workflows/ci.yml` (CLI tests) | Every PR affecting `cli/` | Runs `cli/tests/config-schema-drift.test.ts` to detect unintended configuration changes. |
+| Browser and SDK E2E tests | `.github/workflows/e2e.yml` and `.github/workflows/sdk-e2e-local-node.yml` | PR-triggered for affected code and nightly | Local-node E2E runs deterministically; broader browser tests run nightly or on manual dispatch. |
+| Repository E2E tests | `.github/workflows/e2e.yml` and `.github/workflows/e2e-nightly.yml` | PR smoke coverage (selective); nightly broader | PR trigger runs supported subset; full matrix on nightly schedule. |
+| Load tests | Manual or scheduled via `.github/workflows/ci.yml` or dispatch | Manually, before releases, nightly capacity checks | Not in every PR. Triggered via `workflow_dispatch` or scheduled events; results are advisory. |
+| Benchmark tests | Manual or scheduled; not in default CI | Manually or on schedule | Owned by specific workspace; results used for performance review before releases. |
+| Migration tests (indexer) | `.github/workflows/indexer-migrations.yml` and deployment automation | Every PR for schema changes; scheduled for upgrades | Verifies fresh-database and upgrade behavior. Deployment-specific checks run on release. |
+| Mutation tests (SDK) | `.github/workflows/mutation-testing.yml` | Weekly on Sunday; manually dispatchable; selective on SDK PRs | Advisory/non-blocking. Configured in `packages/sdk/stryker.config.mjs`. |
+| Security and dependency checks | `.github/workflows/ci.yml`, CodeQL, Snyk, audit checks | Every PR or push; some scheduled | Path-triggered; includes gitleaks, dependency audit, license checks, and static analysis. |
+| Documentation and link checks | `.github/workflows/docs-link-check.yml` and documentation build | Every PR affecting `docs/`; link checks on schedule | Validates markdown format, links, and documentation consistency. |
+
+**CI Workflow Files Reference:**
+- **Main PR checks:** `.github/workflows/ci.yml` (fastest, most common)
+- **End-to-end:** `.github/workflows/e2e.yml` (PR smoke), `.github/workflows/e2e-nightly.yml` (nightly full matrix)
+- **Database/migration:** `.github/workflows/indexer-migrations.yml`
+- **Documentation:** `.github/workflows/docs-link-check.yml`, `.github/workflows/docs-deploy.yml`
+- **Specialized:** `.github/workflows/mutation-testing.yml`, `.github/workflows/sdk-e2e-local-node.yml`
+
+**To verify which tests run for a PR:**
+1. Check `.github/workflows/ci.yml` path-filter logic (the `changes` job) to see which workspaces are affected.
+2. Review the job `needs:` and `if:` conditions to see which tests run based on changed paths.
+3. Consult the specific workflow file for environment-dependent or manually-triggered tests.
