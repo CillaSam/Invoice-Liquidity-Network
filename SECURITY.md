@@ -32,10 +32,17 @@ Security fixes are provided for the latest major version of each maintained ILN 
 
 Please report suspected vulnerabilities privately. Do not open a public issue, discussion, or pull request with exploit details before the maintainers have investigated and shipped any necessary fix.
 
-Use either reporting channel:
+**Preferred reporting channel:**
 
-- Email: `security@invoiceliquidity.network`
-- GitHub: open a private GitHub Security Advisory for the affected ILN repository
+- **GitHub Private Vulnerability Advisory** — Open a private GitHub Security Advisory on the affected ILN repository.
+  - Navigate to the repository's Security tab and click "Report a vulnerability".
+  - If the button is not visible, verify that Private Vulnerability Reporting is enabled for the repository. Contact maintainers if it is not.
+  - This creates a private advisory that maintainers can triage and respond to without public visibility.
+
+**Alternative reporting channels:**
+
+- Email: `security@invoiceliquidity.network` (note: MX records for this domain are currently being restored; if mail delivery fails, use GitHub Private Advisory above)
+- GitHub Issues or Discussions (temporary workaround): If neither channel above is available, file an issue or discussion marked "security" or "vulnerability" and request confidential handling. Maintainers will establish a private channel.
 
 Include as much of the following as you can:
 

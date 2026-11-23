@@ -36,8 +36,7 @@ The disclosure policy — how to report, what to include, severity classificatio
 timelines, safe harbour, and recognition — is defined once, canonically, in the repository root
 [`SECURITY.md`](../SECURITY.md). For the reporter-facing entryway, see the
 [Vulnerability Disclosure Policy](./vulnerability-disclosure.md). Report through one of the
-channels listed there (a private GitHub Security Advisory or
-`security@invoiceliquidity.network`) rather than a public issue or pull request.
+channels listed in SECURITY.md (GitHub Private Vulnerability Advisory is preferred, with alternatives documented) rather than a public issue or pull request.
 
 ---
 
