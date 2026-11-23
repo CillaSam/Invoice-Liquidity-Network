@@ -574,6 +574,10 @@ export function createGraphQLHandler() {
     graphqlEndpoint: '/graphql',
     graphiql: process.env.NODE_ENV !== 'production',
     logging: false,
+    // Yoga enables CORS by default and reflects any Origin with credentials.
+    // No ILN service grants cross-origin reads (docs/threat-model.md TM-2.2);
+    // /graphql now matches the REST API, which sends no CORS headers (#1447).
+    cors: false,
     plugins: [queryLimitsPlugin],
   });
 }

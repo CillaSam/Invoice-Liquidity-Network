@@ -93,6 +93,7 @@ the `check-meta-nav` job of `docs-deploy.yml`). The check fails when:
 - [ ] Indexer configuration (`docs/indexer/configuration.md`)
 - [ ] Indexer deployment (`docs/indexer/deployment.md`)
 - [ ] Indexer troubleshooting (`docs/indexer/troubleshooting.md`)
+- [ ] Indexer API hardening (`docs/indexer/api-hardening.md`)
 - [ ] Indexer operations checks (`docs/indexer/operations-checks.md`)
 - [ ] Contract governance (`docs/contracts/governance-contract.md`)
 - [ ] Contract reputation (`docs/contracts/reputation-contract.md`)
