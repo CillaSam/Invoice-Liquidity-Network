@@ -131,15 +131,9 @@ function detectStaleOwnPackages(ownPackages, workspacePackageNames) {
   // Stale: in OWN_PACKAGES but not a workspace package
   const stale = ownPackages.filter((pkg) => !workspaceSet.has(pkg));
 
-  // Missing: workspace package not in OWN_PACKAGES, but only if it has a
-  // publishable name (private packages with no public name are skipped)
+  // Missing: workspace package not in OWN_PACKAGES
   const missing = workspacePackageNames.filter(
-    (pkg) =>
-      !ownSet.has(pkg) &&
-      // Also check scope-based prefixes already covered by ownSet
-      !ownPackages.some(
-        (own) => pkg.startsWith(own.split('/')[0] + '/') || pkg === own
-      )
+    (pkg) => !ownSet.has(pkg)
   );
 
   return { stale, missing };

@@ -29,7 +29,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -116,6 +116,7 @@ export function lint(message, root) {
 
 // ── Main entry point ─────────────────────────────────────────────────────────
 
+function main() {
 const root = join(__dirname, '..');
 const config = loadConfig(root);
 const failures = [];
@@ -258,3 +259,10 @@ if (failures.length > 0) {
 
 console.log('');
 console.log('✅ Commit and PR-title lint rules are consistent');
+}
+
+// Run only when executed directly, not when imported by tests
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname);
+if (isMain) {
+  main();
+}

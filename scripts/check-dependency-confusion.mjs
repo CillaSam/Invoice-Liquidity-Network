@@ -194,7 +194,9 @@ export function discoverWorkspacePackages(rootDir) {
 export function extractPackageSection(lockfile, packageName) {
   const lines = lockfile.split('\n');
   const escapedName = packageName.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-  const startPattern = new RegExp(`^\\s*['"]?${escapedName}['"]?:`);
+  // Match both `pkgname:` (importers section) and `'pkgname@version':`
+  // (packages section) formats in pnpm lockfiles
+  const startPattern = new RegExp(`^\\s*['"]?${escapedName}(?:@[^'"]*)?['"]?:`);
 
   let startIndex = -1;
   let endIndex = -1;
@@ -279,26 +281,24 @@ export function checkLockfileForConfusion(lockfile, internalPackages) {
 
   // Check for unscoped internal packages resolving externally
   for (const pkg of unscoped) {
-    if (lockfile.includes(`${pkg}:`)) {
-      const pkgSection = extractPackageSection(lockfile, pkg);
-      if (pkgSection && !pkgSection.includes('link:') && !pkgSection.includes('workspace:')) {
-        // Check if it resolves to any known external registry
-        const resolvesExternal = EXTERNAL_REGISTRIES.some((reg) =>
-          pkgSection.includes(reg)
-        );
-        if (resolvesExternal) {
-          errors.push({
-            package: pkg,
-            message: `Unscoped internal package ${pkg} resolved to external registry. This is a dependency confusion vulnerability.`,
-            severity: 'HIGH',
-          });
-        } else {
-          warnings.push({
-            package: pkg,
-            message: `Unscoped internal package ${pkg} is vulnerable to confusion attack. Consider scoping or publishing placeholder.`,
-            severity: 'MEDIUM',
-          });
-        }
+    const pkgSection = extractPackageSection(lockfile, pkg);
+    if (pkgSection && !pkgSection.includes('link:') && !pkgSection.includes('workspace:')) {
+      // Check if it resolves to any known external registry
+      const resolvesExternal = EXTERNAL_REGISTRIES.some((reg) =>
+        pkgSection.includes(reg)
+      );
+      if (resolvesExternal) {
+        errors.push({
+          package: pkg,
+          message: `Unscoped internal package ${pkg} resolved to external registry. This is a dependency confusion vulnerability.`,
+          severity: 'HIGH',
+        });
+      } else {
+        warnings.push({
+          package: pkg,
+          message: `Unscoped internal package ${pkg} is vulnerable to confusion attack. Consider scoping or publishing placeholder.`,
+          severity: 'MEDIUM',
+        });
       }
     }
   }
@@ -307,28 +307,26 @@ export function checkLockfileForConfusion(lockfile, internalPackages) {
   // sections but resolve externally — catches cases where a name doesn't match
   // any scope prefix but is still a workspace package
   for (const pkgName of names) {
-    if (lockfile.includes(`${pkgName}:`)) {
-      const pkgSection = extractPackageSection(lockfile, pkgName);
-      if (!pkgSection) continue;
+    const pkgSection = extractPackageSection(lockfile, pkgName);
+    if (!pkgSection) continue;
 
-      if (pkgSection.includes('workspace:') || pkgSection.includes('link:')) {
-        continue;
-      }
+    if (pkgSection.includes('workspace:') || pkgSection.includes('link:')) {
+      continue;
+    }
 
-      const resolvesExternal = EXTERNAL_REGISTRIES.some((reg) =>
-        pkgSection.includes(reg)
-      );
+    const resolvesExternal = EXTERNAL_REGISTRIES.some((reg) =>
+      pkgSection.includes(reg)
+    );
 
-      if (resolvesExternal) {
-        // Only report if not already caught by scope-based check
-        const alreadyReported = errors.some((e) => e.package === pkgName);
-        if (!alreadyReported) {
-          errors.push({
-            package: pkgName,
-            message: `Internal package ${pkgName} resolved to external registry instead of workspace.`,
-            severity: 'HIGH',
-          });
-        }
+    if (resolvesExternal) {
+      // Only report if not already caught by scope-based check
+      const alreadyReported = errors.some((e) => e.package === pkgName);
+      if (!alreadyReported) {
+        errors.push({
+          package: pkgName,
+          message: `Internal package ${pkgName} resolved to external registry instead of workspace.`,
+          severity: 'HIGH',
+        });
       }
     }
   }
