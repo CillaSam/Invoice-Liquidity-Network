@@ -35,11 +35,8 @@ For the complete SDK trust model — including trust assumptions per component, 
 The disclosure policy — how to report, what to include, severity classification, response
 timelines, safe harbour, and recognition — is defined once, canonically, in the repository root
 [`SECURITY.md`](../SECURITY.md). For the reporter-facing entryway, see the
-[Vulnerability Disclosure Policy](./vulnerability-disclosure.md). Use only the currently
-working channel listed in `SECURITY.md`: the detail-free
-[private security channel request](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/issues/new?template=security-private-channel.md).
-Do not send reports to `security@invoiceliquidity.network` (no DNS/MX records) and do not
-rely on self-service GitHub advisories (404 for non-collaborators).
+[Vulnerability Disclosure Policy](./vulnerability-disclosure.md). Report through one of the
+channels listed in SECURITY.md (GitHub Private Vulnerability Advisory is preferred, with alternatives documented) rather than a public issue or pull request.
 
 ---
 

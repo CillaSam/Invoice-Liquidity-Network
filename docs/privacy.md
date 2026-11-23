@@ -147,11 +147,9 @@ Before onboarding residents of any launch country, record the exact countries an
 
 ## 7. Contact
 
-- Security vulnerabilities: use the
-  [private security channel request](../.github/ISSUE_TEMPLATE/security-private-channel.md)
-  and the process in [`SECURITY.md`](../SECURITY.md). Do not include finding
-  details in the public intake issue.
-- Data-export / deletion requests: use the API endpoints above or contact the
-  repository maintainers through their published GitHub profiles.
+For security-related inquiries, data-export / deletion requests, and privacy concerns:
+- **Primary**: Use the reporting channels in [`SECURITY.md`](../SECURITY.md) (GitHub Private Vulnerability Advisory preferred)
+- **Email**: security@invoiceliquidity.network (monitored; if mail delivery fails, use GitHub Advisory or alternative channels in SECURITY.md)
+- **Alternative**: Open a GitHub issue marked "security" or "privacy" and request confidential handling
 
 *Retention behavior described above reflects the code paths and deployment defaults in this repository. Provider-side processing, actual deployed regions, backup lifecycle configuration, and country-specific legal compliance require deployment evidence and review before launch.*

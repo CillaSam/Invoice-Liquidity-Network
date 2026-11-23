@@ -50,10 +50,7 @@ A **discretionary multiplier** of up to 2× may be applied for reports of except
 
 ## Intake and Triage Process
 
-1. **Report submission** – Open the detail-free
-   [private security channel request](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/issues/new?template=security-private-channel.md)
-   with only your GitHub username. A maintainer will open a private advisory and
-   add you; submit the full report there (see `SECURITY.md` → Reporting a Vulnerability).
+1. **Report submission** – Use the reporting channels defined in `SECURITY.md` Reporting a Vulnerability section: GitHub Private Vulnerability Advisory is the preferred channel. Email to `security@invoiceliquidity.network` and other alternatives are documented as fallbacks. Include as much detail as possible.
 
 2. **Initial acknowledgment** – Security team acknowledges within **48 hours** of receipt (matching the policy in `SECURITY.md`).
 
@@ -67,10 +64,7 @@ A **discretionary multiplier** of up to 2× may be applied for reports of except
 
 ## Selecting and Configuring the Bounty Platform
 
-Pre‑mainnet, the program uses a **self‑hosted process** via maintainer-created
-GitHub Security Advisories reached through the private-channel request. This
-avoids third‑party platform fees and keeps the intake channel consistent with
-the existing vulnerability‑disclosure flow.
+Pre‑mainnet, the program uses a **self‑hosted process** via GitHub Security Advisories and the `security@invoiceliquidity.network` email address (with fallbacks documented in SECURITY.md). This avoids third‑party platform fees and keeps the intake channel consistent with the existing vulnerability‑disclosure flow. 
 
 For mainnet, the program may migrate to a dedicated platform (e.g., Immunefi, HackerOne) as the policy and reward budget warrant. The migration path is documented in the program’s annual review.
 

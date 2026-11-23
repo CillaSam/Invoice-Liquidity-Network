@@ -50,8 +50,8 @@ As an early-stage DeFi protocol, safety and stability are our top priorities:
 For security vulnerabilities and emergency operational issues, follow the dedicated escalation channels below:
 
 ### Urgent Security Reports
-- **Private intake**: Open a detail-free [private security channel request](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/issues/new?template=security-private-channel.md) with only your GitHub username.
-- **Private advisory**: A maintainer creates the draft advisory and adds the reporter; full details go there. Self-service advisory reporting currently returns 404 for non-collaborators.
+- **GitHub Private Vulnerability Advisory**: Open a [Private Security Advisory](https://github.com/Invoice-Liquidity-Network/Invoice-Liquidity-Network/security/advisories/new) (preferred method)
+- **Security Email**: `security@invoiceliquidity.network` (monitored; MX records being restored - see [`SECURITY.md`](../SECURITY.md) for alternatives if mail delivery fails)
 - **Safe Harbour**: Good-faith research is explicitly protected under our [Safe Harbour Policy](../SECURITY.md#safe-harbour).
 
 ### Operational Incidents & Outages
@@ -143,7 +143,7 @@ Liquidity providers and freelancers are invited to:
 
 1. **SLO Monitoring:** Oncall dashboard active; error budgets reset at cutover
 2. **Daily Sync:** 12:00 UTC standup for first 7 days to review metrics and support tickets
-3. **Incident Response:** Escalation path documented; security issues routed through the private-channel process in [`SECURITY.md`](../SECURITY.md)
+3. **Incident Response:** Escalation path documented; security issues routed via GitHub Private Vulnerability Advisory or `security@invoiceliquidity.network` (see SECURITY.md)
 
 ---
 

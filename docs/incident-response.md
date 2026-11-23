@@ -20,7 +20,7 @@ Incidents in the main repository frequently intersect with contract execution an
 | **Contract-Level Emergency** (drained escrow, reentrancy) | Smart Contract Lead | `backend`, `frontend` | Trigger contract pause via admin multisig | [Contract Reentrancy Matrix](https://github.com/Invoice-Liquidity-Network/ILN-Smart-Contract/blob/main/docs/security.md#reentrancy-analysis-issue-535) |
 
 ### Emergency Notification Channels
-- **Security Lead / Incident Commander**: `@sec-commander` (vulnerability reports use the private-channel process in [`SECURITY.md`](../SECURITY.md))
+- **Security Lead / Incident Commander**: `@sec-commander` / Contact via GitHub Private Advisory or `security@invoiceliquidity.network` (see [`SECURITY.md`](../SECURITY.md) if mail delivery fails)
 - **Frontend Lead**: `@frontend-leads` (coordinates UI feature flags & Vercel rollbacks)
 - **Contract Lead**: `@contract-leads` (coordinates Soroban contract pause/unpause)
 - **Infrastructure Lead**: `@infra-leads` (manages indexer & notifications deployments)
