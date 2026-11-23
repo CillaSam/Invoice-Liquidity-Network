@@ -80,17 +80,29 @@ export function exportJobMaxCount(): number {
 // ─── Export session cursors ───────────────────────────────────────────────────
 
 /**
- * Cursor payload: base64 of `"<rowId>[:<rowsDeliveredSoFar>]"` — the opaque
- * base64 row-id style of GET /v1/invoices, plus an optional cumulative count
- * so the session row budget survives resumption.
+ * Cursor payload: base64 of `"<rowId>[:<rowsDeliveredSoFar>[:<afterKey>]]"` — the
+ * opaque base64 row-id style of GET /v1/invoices, plus an optional cumulative
+ * count so the session row budget survives resumption.
+ *
+ * `afterKey` is only used by event exports: events are paged by ledger, and
+ * several events can share one ledger, so the last delivered `event_id` is
+ * carried too. Without it a page that ends mid-ledger would resume at
+ * `ledger > id` and silently drop the rest of that ledger's events.
+ * Cursors without `afterKey` (issued before it existed) keep the old meaning.
  */
 export interface ExportCursor {
   id: number;
   rowsBefore: number;
+  afterKey?: string;
 }
 
-export function encodeExportCursor(id: number, rowsBefore: number): string {
-  const payload = rowsBefore > 0 ? `${id}:${rowsBefore}` : `${id}`;
+export function encodeExportCursor(id: number, rowsBefore: number, afterKey?: string): string {
+  const payload =
+    afterKey !== undefined
+      ? `${id}:${rowsBefore}:${afterKey}`
+      : rowsBefore > 0
+        ? `${id}:${rowsBefore}`
+        : `${id}`;
   return Buffer.from(payload, 'utf-8').toString('base64');
 }
 
@@ -98,11 +110,17 @@ export function decodeExportCursor(cursor?: string): ExportCursor | undefined {
   if (!cursor) return undefined;
   try {
     const decoded = Buffer.from(cursor, 'base64').toString('utf-8');
-    const [idPart, rowsPart] = decoded.split(':');
+    const [idPart, rowsPart, ...keyParts] = decoded.split(':');
     const id = Number(idPart);
     if (!Number.isFinite(id) || id < 0) return undefined;
     const rowsBefore = rowsPart !== undefined ? Number(rowsPart) : 0;
-    return { id, rowsBefore: Number.isFinite(rowsBefore) && rowsBefore > 0 ? rowsBefore : 0 };
+    const parsed: ExportCursor = {
+      id,
+      rowsBefore: Number.isFinite(rowsBefore) && rowsBefore > 0 ? rowsBefore : 0,
+    };
+    // event_id values may themselves contain ':' — keep everything after the second one.
+    if (keyParts.length > 0) parsed.afterKey = keyParts.join(':');
+    return parsed;
   } catch {
     return undefined;
   }
@@ -217,7 +235,9 @@ export function _clearJobs(): void {
 
 export async function processExportJob(jobId: string): Promise<void> {
   const entry = _jobs.get(jobId);
-  if (!entry) return;
+  // Only a pending job is processed: a repeated call (double setImmediate,
+  // retry by a caller) must not re-run or overwrite a job in flight or finished.
+  if (!entry || entry.job.status !== 'pending') return;
 
   entry.job.status = 'processing';
 
@@ -286,8 +306,12 @@ export async function processExportJob(jobId: string): Promise<void> {
     entry.job.resumptionCursor = result.resumptionCursor;
     entry.content = chunks.join('');
   } catch (err) {
+    // A failed job keeps no partial content (the chunks are discarded) and gets
+    // a completion time so the TTL sweep evicts it like a finished job.
     entry.job.status = 'failed';
+    entry.job.completedAt = Date.now();
     entry.job.error = err instanceof Error ? err.message : 'Unknown error';
+    delete entry.content;
   }
 }
 
@@ -326,13 +350,29 @@ export function invoiceIdAtOffset(filter: ExportFilter, offset: number): number 
 }
 
 export function eventLedgerAtOffset(filter: EventExportFilter, offset: number): number | undefined {
+  return eventPositionAtOffset(filter, offset)?.ledger;
+}
+
+/** Ledger and event_id of the event at `offset`, in export order. */
+export function eventPositionAtOffset(
+  filter: EventExportFilter,
+  offset: number
+): { ledger: number; eventId: string } | undefined {
   const { clauses, params } = buildEventClauses(filter);
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
   const row = getDb()
-    .prepare(`SELECT ledger FROM events ${where} ORDER BY ledger ASC LIMIT 1 OFFSET ?`)
-    .get(...params, offset) as { ledger: number } | undefined;
-  return row?.ledger;
+    .prepare(
+      `SELECT ledger, event_id FROM events ${where} ORDER BY ${EVENT_EXPORT_ORDER} LIMIT 1 OFFSET ?`
+    )
+    .get(...params, offset) as { ledger: number; event_id: string } | undefined;
+  return row ? { ledger: row.ledger, eventId: row.event_id } : undefined;
 }
+
+/**
+ * Total order for event exports. `event_id` breaks ties inside a ledger so
+ * pages are deterministic and a mid-ledger cursor can resume exactly.
+ */
+const EVENT_EXPORT_ORDER = 'ledger ASC, event_id ASC';
 
 // ─── Data queries (non-streaming, kept for compatibility) ─────────────────────
 
@@ -409,7 +449,10 @@ function buildEventClauses(filter: EventExportFilter): {
   }
   if (filter.cursor) {
     const cursor = decodeExportCursor(filter.cursor);
-    if (cursor) {
+    if (cursor?.afterKey !== undefined) {
+      clauses.push('(ledger > ? OR (ledger = ? AND event_id > ?))');
+      params.push(cursor.id, cursor.id, cursor.afterKey);
+    } else if (cursor) {
       clauses.push('ledger > ?');
       params.push(cursor.id);
     }
@@ -521,7 +564,8 @@ function streamQuery<T>(
   options: StreamOptions,
   toCsvRow: (row: T) => string,
   header: string,
-  cursorOf: (row: T) => number
+  cursorOf: (row: T) => number,
+  cursorKeyOf?: (row: T) => string
 ): StreamExportResult {
   const writer = new StreamWriter(sink);
   const startMs = Date.now();
@@ -530,6 +574,7 @@ function streamQuery<T>(
   let rowsWritten = 0;
   let truncated = false;
   let lastCursorId = 0;
+  let lastCursorKey: string | undefined;
 
   const push = (chunk: string): void => writer.write(chunk);
 
@@ -556,6 +601,7 @@ function streamQuery<T>(
       push(chunk);
       rowsWritten++;
       lastCursorId = cursorOf(row);
+      lastCursorKey = cursorKeyOf?.(row);
     }
 
     if (format === 'json') push(rowsWritten === 0 ? '[]' : '\n]');
@@ -572,7 +618,11 @@ function streamQuery<T>(
   };
 
   if (truncated && !writer.flushedToSocket && !sink.headersSent) {
-    result.resumptionCursor = encodeExportCursor(lastCursorId, rowsBefore + rowsWritten);
+    result.resumptionCursor = encodeExportCursor(
+      lastCursorId,
+      rowsBefore + rowsWritten,
+      lastCursorKey
+    );
     sink.setHeader('X-Export-Truncated', 'true');
     sink.setHeader('X-Export-Resumption-Cursor', result.resumptionCursor);
   }
@@ -629,13 +679,14 @@ export function streamEventsExport(
   const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
   return streamQuery<ILNEvent & { [k: string]: unknown }>(
     sink,
-    `SELECT * FROM events ${where} ORDER BY ledger ASC`,
+    `SELECT * FROM events ${where} ORDER BY ${EVENT_EXPORT_ORDER}`,
     params,
     format,
     { ...options, rowsBefore: options.rowsBefore ?? 0 },
     csvEventRow,
     EVENT_CSV_HEADER,
-    (row) => row.ledger
+    (row) => row.ledger,
+    (row) => row.event_id
   );
 }
 
