@@ -64,17 +64,56 @@ export function getArchiveDbConnection(): ReturnType<typeof getDb> {
   return db;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Exclusive cut-off (ms) for an archival or purge run: rows with
+ * `created_at < cutoff` are eligible, a row at exactly the cut-off is not.
+ *
+ * Rejects retention values that would silently widen or empty the range:
+ * a negative value would put the cut-off in the future and move every row
+ * (including rows written after the run started), and NaN/Infinity would
+ * make the comparison false for every row.
+ */
+export function archiveCutoffMs(olderThanDays: number, now: number = Date.now()): number {
+  if (typeof olderThanDays !== 'number' || !Number.isFinite(olderThanDays) || olderThanDays < 0) {
+    throw new RangeError(
+      `olderThanDays must be a finite, non-negative number of days (got ${String(olderThanDays)})`
+    );
+  }
+  if (!Number.isFinite(now)) {
+    throw new RangeError(`now must be a finite timestamp in ms (got ${String(now)})`);
+  }
+  return now - olderThanDays * DAY_MS;
+}
+
 /**
  * Archive invoices and events older than the specified retention threshold (in days).
  * Moves eligible rows to the attached archive database and deletes them from the main database
  * within a single atomic transaction.
+ *
+ * Range boundaries (issue #1442):
+ *  - The cut-off is computed once per run and every copy, delete and count in
+ *    the transaction uses the same value, so a row cannot be copied without
+ *    being deleted (duplicate) or deleted without being copied (gap).
+ *  - The cut-off is exclusive (`created_at < cutoff`); `purgeOldArchiveData`
+ *    uses the same rule.
+ *  - Counts come from the INSERT statements' `changes`, not a separate
+ *    COUNT, so the returned totals and `archive_runs` always match what was moved.
+ *  - Re-running with the same cut-off is a no-op: moved rows are no longer in main.
+ *  - Any failure rolls back the whole run; main keeps every row.
+ *
+ * `now` exists for deterministic tests and replays; production callers omit it.
  */
-export function archiveOldData(olderThanDays: number = 90): {
+export function archiveOldData(
+  olderThanDays: number = 90,
+  now: number = Date.now()
+): {
   invoicesMoved: number;
   eventsMoved: number;
 } {
   const db = getArchiveDbConnection();
-  const thresholdMs = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
+  const thresholdMs = archiveCutoffMs(olderThanDays, now);
 
   const txn = db.transaction(() => {
     // 1. Calculate how many records will be moved
@@ -90,23 +129,39 @@ export function archiveOldData(olderThanDays: number = 90): {
     }
 
     // 2. Insert records into the archive database
-    db.prepare(
-      `
+    const invoicesCopied = db
+      .prepare(
+        `
       INSERT OR REPLACE INTO archive.invoices
       SELECT * FROM main.invoices WHERE created_at < ?
     `
-    ).run(thresholdMs);
+      )
+      .run(thresholdMs).changes;
 
-    db.prepare(
-      `
+    const eventsCopied = db
+      .prepare(
+        `
       INSERT OR REPLACE INTO archive.events
       SELECT * FROM main.events WHERE created_at < ?
     `
-    ).run(thresholdMs);
+      )
+      .run(thresholdMs).changes;
 
     // 3. Delete records from the main database
-    db.prepare('DELETE FROM main.invoices WHERE created_at < ?').run(thresholdMs);
-    db.prepare('DELETE FROM main.events WHERE created_at < ?').run(thresholdMs);
+    const invoicesDeleted = db
+      .prepare('DELETE FROM main.invoices WHERE created_at < ?')
+      .run(thresholdMs).changes;
+    const eventsDeleted = db
+      .prepare('DELETE FROM main.events WHERE created_at < ?')
+      .run(thresholdMs).changes;
+
+    // Every row copied must be the row deleted; anything else would leave a
+    // gap or a duplicate, so abort (and roll back) instead of committing it.
+    if (invoicesCopied !== invoicesDeleted || eventsCopied !== eventsDeleted) {
+      throw new Error(
+        `[archive] range mismatch: copied ${invoicesCopied}/${eventsCopied} but deleted ${invoicesDeleted}/${eventsDeleted} (invoices/events)`
+      );
+    }
 
     // 4. Log the archival run
     db.prepare(
@@ -114,11 +169,11 @@ export function archiveOldData(olderThanDays: number = 90): {
       INSERT INTO archive.archive_runs (run_time, invoices_moved, events_moved)
       VALUES (?, ?, ?)
     `
-    ).run(Date.now(), invoicesToMove.count, eventsToMove.count);
+    ).run(now, invoicesCopied, eventsCopied);
 
     return {
-      invoicesMoved: invoicesToMove.count,
-      eventsMoved: eventsToMove.count,
+      invoicesMoved: invoicesCopied,
+      eventsMoved: eventsCopied,
     };
   });
 
@@ -217,12 +272,15 @@ export function restoreInvoice(id: number): boolean {
  * Purge invoices and events from the archive database older than the specified retention threshold (in days).
  * This permanently deletes data in accordance with the data-minimization and legal-hold lifecycle policy (e.g. 7 years).
  */
-export function purgeOldArchiveData(olderThanDays: number = 2555): {
+export function purgeOldArchiveData(
+  olderThanDays: number = 2555,
+  now: number = Date.now()
+): {
   invoicesPurged: number;
   eventsPurged: number;
 } {
   const db = getArchiveDbConnection();
-  const thresholdMs = Date.now() - olderThanDays * 24 * 60 * 60 * 1000;
+  const thresholdMs = archiveCutoffMs(olderThanDays, now);
 
   const txn = db.transaction(() => {
     // 1. Calculate how many records will be purged

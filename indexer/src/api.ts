@@ -33,7 +33,7 @@ import {
   countInvoicesForExport,
   countEventsForExport,
   invoiceIdAtOffset,
-  eventLedgerAtOffset,
+  eventPositionAtOffset,
   exportSessionBudget,
   exportPageMaxRows,
   decodeExportCursor,
@@ -399,7 +399,9 @@ export function createApp(): express.Application {
       const result = archiveOldData(olderThanDays);
       res.json({ success: true, ...result });
     } catch (error: any) {
-      res.status(500).json({ error: error.message || 'Archival run failed' });
+      // An out-of-range retention (negative, NaN) is a client error, not a server failure.
+      const status = error instanceof RangeError ? 400 : 500;
+      res.status(status).json({ error: error.message || 'Archival run failed' });
     }
   });
 
@@ -572,10 +574,10 @@ export function createApp(): express.Application {
     const rowsBefore = cursor?.rowsBefore ?? 0;
     const remaining = countEventsForExport(filter);
     const prepared = prepareExportStream(res, remaining, rowsBefore, (rowBudget) => {
-      const lastLedger = eventLedgerAtOffset(filter, rowBudget - 1);
-      return lastLedger === undefined
+      const last = eventPositionAtOffset(filter, rowBudget - 1);
+      return last === undefined
         ? undefined
-        : encodeExportCursor(lastLedger, rowsBefore + rowBudget);
+        : encodeExportCursor(last.ledger, rowsBefore + rowBudget, last.eventId);
     });
     if (!prepared) return;
 

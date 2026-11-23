@@ -255,3 +255,97 @@ describe('Issue #1257: Implement rollback for removed events', () => {
     expect(cache.invalidateInvoiceCache).toHaveBeenCalledWith(301);
   });
 });
+
+describe('Issue #1440: Reorg replay idempotency across overlapping ledgers', () => {
+  function eventIdsFor(invoiceId: number): string[] {
+    return getEvents(invoiceId).map((e) => e.event_id);
+  }
+
+  it('replays an overlapping ledger window after a rollback without duplicating events', async () => {
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(401, 'Pending'));
+    await processEvent(makeEvent('submitted', 401, 140));
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(401, 'Funded', FUNDER));
+    await processEvent(makeEvent('funded', 401, 150));
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(401, 'Paid', FUNDER));
+    await processEvent(makeEvent('paid', 401, 160));
+
+    rollbackToLedger(150);
+    expect(eventIdsFor(401)).toEqual(['evt-401-submitted-140', 'evt-401-funded-150']);
+    expect(getInvoiceById(401)?.status).toBe('Funded');
+
+    // The re-scan window [145, 165] overlaps ledgers that survived the rollback.
+    vi.mocked(fetchInvoice).mockReset();
+    vi.mocked(fetchInvoice).mockResolvedValue(mockInvoice(401, 'Paid', FUNDER));
+    await processEvent(makeEvent('funded', 401, 150)); // survived: deduplicated
+    await processEvent(makeEvent('paid', 401, 160)); // rolled back: re-applied once
+    await processEvent(makeEvent('paid', 401, 160)); // repeated in the window
+
+    expect(fetchInvoice).toHaveBeenCalledTimes(1);
+    expect(eventIdsFor(401)).toEqual([
+      'evt-401-submitted-140',
+      'evt-401-funded-150',
+      'evt-401-paid-160',
+    ]);
+    expect(getInvoiceById(401)?.status).toBe('Paid');
+  });
+
+  it('stores one row when the same event arrives twice in one concurrent batch', async () => {
+    // Both calls pass the hasEvent() check before either commits, so both fetch;
+    // INSERT OR IGNORE inside applyEventWithInvoice keeps the stored state single.
+    vi.mocked(fetchInvoice).mockResolvedValue(mockInvoice(402, 'Pending'));
+    const event = makeEvent('submitted', 402, 170);
+
+    await Promise.all([processEvent(event), processEvent(event)]);
+
+    expect(eventIdsFor(402)).toEqual(['evt-402-submitted-170']);
+    expect(getInvoiceById(402)?.status).toBe('Pending');
+  });
+
+  it('is idempotent when the same rollback is applied twice (stale fork decision replayed)', async () => {
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(403, 'Pending'));
+    await processEvent(makeEvent('submitted', 403, 140));
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(403, 'Funded', FUNDER));
+    await processEvent(makeEvent('funded', 403, 160));
+
+    const first = rollbackToLedger(150);
+    const afterFirst = getInvoiceById(403);
+    const second = rollbackToLedger(150);
+
+    expect(first).toMatchObject({ eventsRemoved: 1, invoicesAffected: 1 });
+    expect(second).toEqual({ eventsRemoved: 0, invoicesAffected: 0, affectedInvoiceIds: [] });
+    expect(getInvoiceById(403)?.status).toBe('Pending');
+    expect(getInvoiceById(403)?.funder).toBeNull();
+    expect(getInvoiceById(403)?.updated_at).toBe(afterFirst?.updated_at);
+    expect(getCursorLedger()).toBe(150);
+  });
+
+  it('keeps events exactly at the rollback ledger and leaves canonical state untouched', async () => {
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(404, 'Pending'));
+    await processEvent(makeEvent('submitted', 404, 150));
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(404, 'Funded', FUNDER));
+    await processEvent(makeEvent('funded', 404, 150, 'evt-404-funded-150'));
+
+    const result = rollbackToLedger(150);
+
+    expect(result.eventsRemoved).toBe(0);
+    expect(eventIdsFor(404)).toHaveLength(2);
+    expect(getInvoiceById(404)?.status).toBe('Funded');
+    expect(getInvoiceById(404)?.funder).toBe(FUNDER);
+  });
+
+  it('applies the replacement event from the canonical fork after a rollback', async () => {
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(405, 'Pending'));
+    await processEvent(makeEvent('submitted', 405, 140));
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(405, 'Funded', FUNDER));
+    await processEvent(makeEvent('funded', 405, 160, 'fork-a-funded'));
+
+    rollbackToLedger(150);
+    expect(hasEvent('fork-a-funded')).toBe(false);
+
+    // The canonical chain has a different event id at a later ledger.
+    vi.mocked(fetchInvoice).mockResolvedValueOnce(mockInvoice(405, 'Defaulted'));
+    await processEvent(makeEvent('defaulted', 405, 162, 'fork-b-defaulted'));
+    expect(eventIdsFor(405)).toEqual(['evt-405-submitted-140', 'fork-b-defaulted']);
+    expect(getInvoiceById(405)?.status).toBe('Defaulted');
+  });
+});
