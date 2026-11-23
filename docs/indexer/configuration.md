@@ -53,10 +53,15 @@ The ILN Indexer is configured via environment variables. This document describes
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Rate limit window in milliseconds |
 | `RATE_LIMIT_MAX` | `100` | Maximum requests per IP per window |
 | `RATE_LIMIT_WHITELIST` | - | Comma-separated list of exact client IP addresses to exempt; values are never usernames, API keys, or arbitrary identifiers |
+| `TRUST_PROXY_HOPS` | `1` | Number of reverse proxies in front of the indexer that append to `X-Forwarded-For` (`0`–`10`). `1` matches Railway. Use `2` behind a CDN plus Railway, and `0` when the indexer is reachable directly. |
+
+With `REDIS_URL` set, rate-limit counters are shared by every replica;
+otherwise each process counts on its own. See
+[api-hardening.md](api-hardening.md#rate-limits-1446).
 
 ### Rate-limit whitelist threat model
 
-`RATE_LIMIT_WHITELIST` is an operational exception for trusted infrastructure such as a private monitoring agent. Entries are exact normalized IP addresses (IPv4, IPv6, or IPv4-mapped IPv6); they are not authentication credentials. The service must therefore run behind a correctly configured trusted proxy, and the proxy must overwrite—not append to—forwarded client-IP headers. Do not whitelist public users, shared NAT addresses, or values supplied by clients. An attacker who can reach the service from a whitelisted network can bypass the limiter, so network access control and authenticated infrastructure identity remain mandatory.
+`RATE_LIMIT_WHITELIST` is an operational exception for trusted infrastructure such as a private monitoring agent. Entries are exact normalized IP addresses (IPv4, IPv6, or IPv4-mapped IPv6); they are not authentication credentials. The service must therefore run behind a correctly configured trusted proxy, and `TRUST_PROXY_HOPS` must equal the number of proxies that append to `X-Forwarded-For`: the client IP is then the entry that many hops from the right, and entries a client writes itself are ignored. Do not whitelist public users, shared NAT addresses, or values supplied by clients. An attacker who can reach the service from a whitelisted network can bypass the limiter, so network access control and authenticated infrastructure identity remain mandatory.
 
 The indexer refuses to start if any whitelist entry is not an IP address, and the limiter compares only the parsed `req.ip`, so spoofed arbitrary identifiers cannot match an entry. `/health` and `/v1/health` are never rate limited, so orchestrator health probes cannot be throttled.
 

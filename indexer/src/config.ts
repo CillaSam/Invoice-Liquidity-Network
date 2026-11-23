@@ -28,6 +28,13 @@ export const CONFIG = {
   /** Max requests per IP per window (default: 100). */
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX ?? '100'),
   /**
+   * Number of reverse proxies in front of the indexer that append to
+   * X-Forwarded-For (default: 1, Railway's edge). The client IP used for rate
+   * limiting is the entry this many hops from the right; set 0 when the
+   * indexer is exposed directly, so clients cannot choose their own IP (#1446).
+   */
+  trustProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? '1'),
+  /**
    * Comma-separated list of IPs exempt from rate limiting, e.g. for
    * internal services and monitoring (e.g. "10.0.0.5,10.0.0.6").
    */

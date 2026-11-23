@@ -211,3 +211,10 @@ export const cacheStaleWritesSkippedTotal = new Counter({
   help: 'Cache writes skipped because the cache generation changed during the request',
   registers: [registry],
 });
+
+/** Rate-limit store (Redis) failures; affected requests were allowed through (#1446). */
+export const rateLimitStoreErrorsTotal = new Counter({
+  name: 'iln_rate_limit_store_errors_total',
+  help: 'Rate limit store failures; the affected requests were allowed (fail open)',
+  registers: [registry],
+});

@@ -1,5 +1,6 @@
 import express, { Request, Response, Router, RequestHandler } from 'express';
 import { applySecurityHeaders } from './securityHeaders';
+import { CONFIG } from './config';
 import swaggerUi from 'swagger-ui-express';
 import crypto from 'crypto';
 import { traceMiddleware, withSpan } from '@iln/opentelemetry';
@@ -67,9 +68,10 @@ function routeParam(req: Request, name: string): string {
  */
 export function createApp(): express.Application {
   const app = express();
-  // Trust the first hop's X-Forwarded-For (e.g. Railway's proxy) so
-  // per-IP rate limiting sees real client IPs rather than the proxy's.
-  app.set('trust proxy', 1);
+  // Trust exactly TRUST_PROXY_HOPS proxies' X-Forwarded-For entries (default
+  // 1, Railway's proxy) so per-IP rate limiting sees real client IPs rather
+  // than the proxy's, and clients cannot pick their own (#1446).
+  app.set('trust proxy', CONFIG.trustProxyHops);
   // First, so every response — 404, 429, errors — carries the headers (#1287).
   applySecurityHeaders(app);
   // Distributed tracing — W3C traceparent propagation across indexer/oracle/notifications
