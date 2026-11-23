@@ -7,5 +7,6 @@
   "troubleshooting": "Troubleshooting",
   "failover-plan": "Failover Plan",
   "operations-checks": "Operations Checks",
-  "cursor-divergence-recovery": "Cursor Divergence Recovery"
+  "cursor-divergence-recovery": "Cursor Divergence Recovery",
+  "api-hardening": "API Hardening"
 }

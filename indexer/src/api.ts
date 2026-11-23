@@ -1,5 +1,6 @@
 import express, { Request, Response, Router, RequestHandler } from 'express';
 import { applySecurityHeaders } from './securityHeaders';
+import { CONFIG } from './config';
 import swaggerUi from 'swagger-ui-express';
 import crypto from 'crypto';
 import { traceMiddleware, withSpan } from '@iln/opentelemetry';
@@ -14,7 +15,7 @@ import {
   queryInvoicesPaginated,
   getCursorUpdatedAt,
 } from './db';
-import { cacheGet, cacheSet } from './cache';
+import { cacheGeneration, cacheGetJson, cacheSet, invalidateAllInvoiceCaches, invalidateInvoiceCache } from './cache';
 import { openApiSpec } from './openapi';
 import { createGraphQLHandler } from './graphql';
 import { createApiRateLimiter } from './rateLimit';
@@ -67,9 +68,10 @@ function routeParam(req: Request, name: string): string {
  */
 export function createApp(): express.Application {
   const app = express();
-  // Trust the first hop's X-Forwarded-For (e.g. Railway's proxy) so
-  // per-IP rate limiting sees real client IPs rather than the proxy's.
-  app.set('trust proxy', 1);
+  // Trust exactly TRUST_PROXY_HOPS proxies' X-Forwarded-For entries (default
+  // 1, Railway's proxy) so per-IP rate limiting sees real client IPs rather
+  // than the proxy's, and clients cannot pick their own (#1446).
+  app.set('trust proxy', CONFIG.trustProxyHops);
   // First, so every response — 404, 429, errors — carries the headers (#1287).
   applySecurityHeaders(app);
   // Distributed tracing — W3C traceparent propagation across indexer/oracle/notifications
@@ -229,20 +231,26 @@ export function createApp(): express.Application {
     const fl = typeof freelancer === 'string' ? freelancer : '';
     const pa = typeof payer === 'string' ? payer : '';
     const fu = typeof funder === 'string' ? funder : '';
-    const limit = typeof rawLimit === 'string' ? Math.min(parseInt(rawLimit, 10) || 100, 100) : 100;
+    // Positive integers up to 100; anything else (including 0 and negatives,
+    // which SQLite would treat as "no limit") falls back to 100 (#1444).
+    const parsedLimit = typeof rawLimit === 'string' ? Number.parseInt(rawLimit, 10) : NaN;
+    const limit = Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 100;
     
     // Hash query parameters to prevent cache key collisions and poisoning
     const params = { s, fl, pa, fu, limit, cursor: cursor ?? '' };
     const hash = crypto.createHash('sha256').update(JSON.stringify(params)).digest('hex');
     const cacheKey = `invoices:${hash}`;
 
-    const cached = await cacheGet(cacheKey);
-    if (cached) {
+    const cached = await cacheGetJson<unknown>(cacheKey);
+    if (cached !== null) {
       cacheControl(res, 'medium');
-      res.json(JSON.parse(cached));
+      res.json(cached);
       return;
     }
 
+    // Taken before reading SQLite, so a copy read before a concurrent
+    // invalidation is never written back (#1445).
+    const generation = await cacheGeneration();
     const { invoices, hasMore, nextCursor } = queryInvoicesPaginated(
       {
         status: s || undefined,
@@ -255,7 +263,7 @@ export function createApp(): express.Application {
     );
 
     const result = { invoices, hasMore, nextCursor };
-    await cacheSet(cacheKey, JSON.stringify(result));
+    await cacheSet(cacheKey, JSON.stringify(result), undefined, generation);
     cacheControl(res, 'medium');
     res.json(result);
   });
@@ -321,13 +329,14 @@ export function createApp(): express.Application {
     }
 
     const cacheKey = `invoice:${id}`;
-    const cached = await cacheGet(cacheKey);
-    if (cached) {
+    const cached = await cacheGetJson<unknown>(cacheKey);
+    if (cached !== null) {
       cacheControl(res, 'medium');
-      res.json(JSON.parse(cached));
+      res.json(cached);
       return;
     }
 
+    const generation = await cacheGeneration();
     const invoice = getInvoiceById(id);
     if (!invoice) {
       res.status(404).json({ error: `Invoice #${id} not found` });
@@ -335,7 +344,7 @@ export function createApp(): express.Application {
     }
 
     const result = { invoice };
-    await cacheSet(cacheKey, JSON.stringify(result));
+    await cacheSet(cacheKey, JSON.stringify(result), undefined, generation);
     cacheControl(res, 'medium');
     res.json(result);
   });
@@ -375,7 +384,7 @@ export function createApp(): express.Application {
   });
 
   // POST /archive/restore/:id
-  router.post('/archive/restore/:id', (req: Request, res: Response) => {
+  router.post('/archive/restore/:id', async (req: Request, res: Response) => {
     const id = parseInt(routeParam(req, 'id'), 10);
     if (isNaN(id) || id <= 0) {
       res.status(400).json({ error: 'Invalid invoice ID - must be a positive integer' });
@@ -386,6 +395,8 @@ export function createApp(): express.Application {
       res.status(404).json({ error: `Invoice #${id} not found in archive` });
       return;
     }
+    // The invoice is back in the main table and in every list (#1445).
+    await invalidateInvoiceCache(id);
     res.json({
       success: true,
       message: `Invoice #${id} and associated events restored successfully`,
@@ -393,10 +404,12 @@ export function createApp(): express.Application {
   });
 
   // POST /archive/run
-  router.post('/archive/run', (req: Request, res: Response) => {
+  router.post('/archive/run', async (req: Request, res: Response) => {
     const olderThanDays = typeof req.body?.olderThanDays === 'number' ? req.body.olderThanDays : 90;
     try {
       const result = archiveOldData(olderThanDays);
+      // Archived invoices left the main table; cached copies must go too (#1445).
+      if (result.invoicesMoved > 0) await invalidateAllInvoiceCaches();
       res.json({ success: true, ...result });
     } catch (error: any) {
       // An out-of-range retention (negative, NaN) is a client error, not a server failure.

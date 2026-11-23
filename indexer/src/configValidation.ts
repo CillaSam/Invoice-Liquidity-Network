@@ -57,6 +57,7 @@ export const NUMERIC_RULES: Record<string, { min: number; max?: number; unit?: s
   CONFIRMATION_DEPTH: { min: 0, max: 1_000, unit: 'ledgers' },
   RATE_LIMIT_WINDOW_MS: { min: 1_000, unit: 'ms' },
   RATE_LIMIT_MAX: { min: 1 },
+  TRUST_PROXY_HOPS: { min: 0, max: 10 },
   SUBSCRIPTION_MAX_CONNECTIONS: { min: 0 },
   SUBSCRIPTION_MAX_CONNECTIONS_PER_IP: { min: 0 },
   ARCHIVE_INTERVAL_MS: { min: 60_000, unit: 'ms' },

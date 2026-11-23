@@ -299,6 +299,11 @@ export function queryInvoicesPaginated(
   limit: number,
   cursor?: string
 ): { invoices: Invoice[]; hasMore: boolean; nextCursor?: string } {
+  // A non-positive LIMIT is "no limit" in SQLite, and an empty page with
+  // hasMore=true cannot produce a cursor (#1444). Callers validate first.
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new RangeError(`queryInvoicesPaginated: limit must be a positive integer, got ${limit}`);
+  }
   const db = getDb();
   const clauses: string[] = [];
   const params: (string | number)[] = [];

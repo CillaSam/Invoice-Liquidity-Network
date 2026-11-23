@@ -197,3 +197,24 @@ export function observeHttpRequest(
     /* non-fatal */
   }
 }
+
+/** Cache invalidations that could not reach Redis; entries may be stale for up to the TTL (#1445). */
+export const cacheInvalidationFailuresTotal = new Counter({
+  name: 'iln_cache_invalidation_failures_total',
+  help: 'Cache invalidations that failed; stale entries expire within the cache TTL',
+  registers: [registry],
+});
+
+/** Cache writes skipped because an invalidation happened while the response was being built (#1445). */
+export const cacheStaleWritesSkippedTotal = new Counter({
+  name: 'iln_cache_stale_writes_skipped_total',
+  help: 'Cache writes skipped because the cache generation changed during the request',
+  registers: [registry],
+});
+
+/** Rate-limit store (Redis) failures; affected requests were allowed through (#1446). */
+export const rateLimitStoreErrorsTotal = new Counter({
+  name: 'iln_rate_limit_store_errors_total',
+  help: 'Rate limit store failures; the affected requests were allowed (fail open)',
+  registers: [registry],
+});

@@ -2,6 +2,8 @@ import { ApolloServer } from '@apollo/server';
 import { expressMiddleware } from '@apollo/server/express4';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { useServer } from 'graphql-ws/lib/use/ws';
+import { parse, type GraphQLError } from 'graphql';
+import { checkQueryLimits } from '../graphql';
 import { WebSocketServer } from 'ws';
 import type { Server } from 'http';
 import type { RequestHandler } from 'express';
@@ -102,6 +104,21 @@ export async function createGraphQLServer(
   useServer(
     {
       schema,
+      // Same depth/cost limits as HTTP /graphql (#1444): graphql-ws runs
+      // queries as well as subscriptions over the socket. Returning errors
+      // here makes graphql-ws answer with an `error` message and run nothing.
+      onSubscribe: (_ctx, message) => {
+        let document;
+        try {
+          document = parse(message.payload.query);
+        } catch {
+          return undefined; // graphql-ws reports the syntax error itself
+        }
+        const violations = checkQueryLimits(document, message.payload.operationName);
+        if (violations.length === 0) return undefined;
+        // graphql-ws only serialises these, so plain error objects suffice.
+        return violations as unknown as readonly GraphQLError[];
+      },
       onConnect: (ctx) => {
         // Optional shared-secret auth: when SUBSCRIPTION_AUTH_TOKEN is set,
         // require the client to present it in the Authorization header during

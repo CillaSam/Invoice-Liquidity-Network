@@ -181,3 +181,67 @@ describe('GraphQL WebSocket authentication', () => {
     await connection.close;
   });
 });
+describe('GraphQL WebSocket query limits (#1444)', () => {
+  it('rejects an over-cost query on the socket with the same rule as HTTP', async () => {
+    const { url } = await startServer({ authToken: '' });
+    // graphql-ws only speaks the graphql-transport-ws subprotocol.
+    const ws = new WebSocket(url, 'graphql-transport-ws');
+    await new Promise<void>((resolve, reject) => {
+      ws.once('open', () => resolve());
+      ws.once('error', reject);
+    });
+    const messages: Array<{ type: string; id?: string; payload?: unknown }> = [];
+    const done = new Promise<void>((resolve) => {
+      ws.on('message', (raw) => {
+        const msg = JSON.parse(String(raw));
+        messages.push(msg);
+        if (msg.type === 'connection_ack') {
+          const page = 'invoices(limit: 100) { invoices { id freelancer payer amount status funder } }';
+          const aliases = Array.from({ length: 5 }, (_, i) => `p${i}: ${page}`).join(' ');
+          ws.send(
+            JSON.stringify({ id: 'q1', type: 'subscribe', payload: { query: `{ ${aliases} }` } })
+          );
+        }
+        if (msg.type === 'error' || msg.type === 'complete' || msg.type === 'next') resolve();
+      });
+    });
+    ws.send(JSON.stringify({ type: 'connection_init', payload: {} }));
+    await done;
+    ws.close();
+
+    const error = messages.find((m) => m.type === 'error');
+    expect(error).toBeDefined();
+    expect(JSON.stringify(error?.payload)).toContain('QUERY_TOO_COMPLEX');
+  });
+});
+
+describe('GraphQL WebSocket limits allow ordinary queries (#1444)', () => {
+  it('serves a full 100-invoice page on the socket', async () => {
+    const { url } = await startServer({ authToken: '' });
+    const ws = new WebSocket(url, 'graphql-transport-ws');
+    await new Promise<void>((resolve, reject) => {
+      ws.once('open', () => resolve());
+      ws.once('error', reject);
+    });
+    const reply = new Promise<{ type: string; payload?: unknown }>((resolve) => {
+      ws.on('message', (raw) => {
+        const msg = JSON.parse(String(raw));
+        if (msg.type === 'connection_ack') {
+          ws.send(
+            JSON.stringify({
+              id: 'q1',
+              type: 'subscribe',
+              payload: { query: '{ invoices(limit: 100) { invoices { id amount status } hasMore nextCursor } }' },
+            })
+          );
+        }
+        if (msg.type === 'next' || msg.type === 'error') resolve(msg);
+      });
+    });
+    ws.send(JSON.stringify({ type: 'connection_init', payload: {} }));
+    const msg = await reply;
+    ws.close();
+    expect(msg.type).toBe('next');
+    expect(JSON.stringify(msg.payload)).not.toContain('QUERY_TOO');
+  });
+});
