@@ -229,7 +229,10 @@ export function createApp(): express.Application {
     const fl = typeof freelancer === 'string' ? freelancer : '';
     const pa = typeof payer === 'string' ? payer : '';
     const fu = typeof funder === 'string' ? funder : '';
-    const limit = typeof rawLimit === 'string' ? Math.min(parseInt(rawLimit, 10) || 100, 100) : 100;
+    // Positive integers up to 100; anything else (including 0 and negatives,
+    // which SQLite would treat as "no limit") falls back to 100 (#1444).
+    const parsedLimit = typeof rawLimit === 'string' ? Number.parseInt(rawLimit, 10) : NaN;
+    const limit = Number.isInteger(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 100;
     
     // Hash query parameters to prevent cache key collisions and poisoning
     const params = { s, fl, pa, fu, limit, cursor: cursor ?? '' };
