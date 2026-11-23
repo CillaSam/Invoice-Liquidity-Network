@@ -94,7 +94,7 @@ ILN supports good-faith security research. We will not pursue legal action or re
 - Uses the minimum access needed to verify the vulnerability
 - Does not move, drain, or permanently lock funds
 - Does not disclose details publicly before maintainers have completed coordinated remediation
-- Reports findings promptly through the private channels above
+- Reports findings promptly through the supported private disclosure route above
 
 Safe harbour does not cover extortion, social engineering, phishing, physical attacks, malware, spam, or attempts to access unrelated third-party systems.
 

@@ -275,7 +275,7 @@ Monitor service health using `scripts/monitor.sh`. Integrate it into your CI and
 - Unexpected fund movements on-chain.
 - Health check failures for the indexer or notifications service.
 - Anomalous error rates in SDK operations.
-- Reports from users via GitHub Security Advisories or the security email.
+- Reports from users through the private disclosure route in [`SECURITY.md`](../SECURITY.md).
 
 ### Step 2 — Contain
 
@@ -285,8 +285,8 @@ Monitor service health using `scripts/monitor.sh`. Integrate it into your CI and
 
 ### Step 3 — Report
 
-- Open a private GitHub Security Advisory immediately, even if the full scope is unknown.
-- Notify the security team at security@invoiceliquidity.network with the initial assessment.
+- Use the private-channel process in [`SECURITY.md`](../SECURITY.md); maintainers open the draft advisory and add the reporter.
+- Ask the reporter to move the full initial assessment into that private advisory; do not request details in a public issue.
 - Do not post details in public channels (Discord, Twitter, GitHub Issues) until a fix is deployed.
 
 ### Step 4 — Remediate

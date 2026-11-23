@@ -161,7 +161,15 @@ app.listen(PORT, () => console.log(\`ILN webhook listener on :\${PORT}\`));
           stellar_address: vars.stellarAddress,
           channel: 'email',
           destination: vars.email,
-          triggers: ['invoice_funded', 'invoice_paid', 'invoice_defaulted', 'invoice_due_soon'],
+          triggers: [
+            'invoice_submitted',
+            'invoice_funded',
+            'payment_received',
+            'invoice_paid',
+            'invoice_defaulted',
+            'dispute_opened',
+            'invoice_due_soon',
+          ],
         },
         null,
         2

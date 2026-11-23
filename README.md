@@ -332,7 +332,7 @@ Built on [Stellar](https://stellar.org) and [Soroban](https://soroban.stellar.or
 
 ## Security
 
-Please refer to our [Security Policy](./SECURITY.md) for information on supported versions and how to report vulnerabilities privately.
+Please refer to our [Security Policy](./SECURITY.md) for information on supported versions and how to report vulnerabilities privately. If GitHub private vulnerability reporting returns 404 for your account, use the detail-free [private security channel request](./.github/ISSUE_TEMPLATE/security-private-channel.md).
 
 ## Documentation Site
 

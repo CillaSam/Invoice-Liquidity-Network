@@ -15,12 +15,19 @@ export type InvoiceStatus =
   | 'Disputed'
   | 'Expired'
   | 'Cancelled';
-export type ILNEventType = 'submitted' | 'funded' | 'paid' | 'defaulted';
+export type ILNEventType = 'submitted' | 'funded' | 'paid' | 'defaulted' | 'disputed';
 
+/**
+ * `invoice_paid` is retained for existing subscriptions; `payment_received`
+ * is the canonical trigger emitted for paid events (issue #476).
+ */
 export type NotificationTrigger =
+  | 'invoice_submitted'
   | 'invoice_funded'
+  | 'payment_received'
   | 'invoice_paid'
   | 'invoice_defaulted'
+  | 'dispute_opened'
   | 'invoice_due_soon'
   | 'invoice_overdue';
 

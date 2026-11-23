@@ -61,6 +61,8 @@ Tests mock `spawnSync` to avoid network access and verify argument construction,
 | `mainnet-checklist-parser.js` | Parses the mainnet launch checklist markdown and updates issue statuses. |
 | `validate-mainnet-launch-evidence.mjs` | Validates per-row artifact links and, in launch mode, downloads and verifies current independent external audit evidence. |
 | `check-mainnet-launch-readiness.mjs` | Validates checklist ownership, freshness, local evidence, independent sign-off, and prelaunch readiness; writes an operator report. |
+| `hardening/on-call-escalation-handoff.mjs` | Validates the named on-call ownership, escalation SLAs, and current handoff manifest for #1329; fails closed on placeholders, overdue handoffs, or drifted evidence. |
+| `hardening/mainnet-go-no-go-tabletop.mjs` | Validates the seven-scenario, independently reviewed go/no-go tabletop record for #1330; returns GO only for fresh, fully evidenced, unblocked records. |
 | `generate-types.ts` | Generates shared TypeScript types from contract specs. |
 | `deploy.ts` | Deployment orchestration for Soroban contracts. |
 | `migrate.ts` | Database migration runner. |

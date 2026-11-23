@@ -22,9 +22,12 @@ function parseIntEnv(name: string, fallback: number): number {
 
 export const ALLOWED_CHANNELS = ['email', 'webhook', 'sms'] as const;
 export const ALLOWED_TRIGGERS = [
+  'invoice_submitted',
   'invoice_funded',
+  'payment_received',
   'invoice_paid',
   'invoice_defaulted',
+  'dispute_opened',
   'invoice_due_soon',
   'invoice_overdue',
 ] as const;

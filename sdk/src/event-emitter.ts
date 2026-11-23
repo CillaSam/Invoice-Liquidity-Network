@@ -1,7 +1,7 @@
 import type { ContractEvent } from './types';
 export type { ContractEvent };
 
-export type InvoiceEventType = 'submitted' | 'funded' | 'paid' | 'defaulted';
+export type InvoiceEventType = 'submitted' | 'funded' | 'paid' | 'defaulted' | 'disputed';
 export type WalletEventType = 'connected' | 'disconnected';
 export type ErrorEventType = 'simulation_failed' | 'submission_failed' | 'network_error';
 

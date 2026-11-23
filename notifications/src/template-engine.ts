@@ -81,6 +81,61 @@ View details on the ILN dashboard.`,
       updatedAt: now,
     });
 
+    // Invoice submitted template (#476)
+    this.templates.set('invoice_submitted', {
+      id: 'invoice_submitted',
+      name: 'Invoice Submitted Notification',
+      version: '1.0.0',
+      subject: 'Invoice #{{invoiceId}} has been submitted',
+      body: `Invoice #{{invoiceId}} for {{amount}} from {{payer}} was submitted by {{freelancer}}.
+
+Amount: {{amount}}
+Discount Rate: {{discountRate}}%
+Due Date: {{dueDate}}
+
+The invoice is awaiting funding. No payment action is required yet.`,
+      triggers: ['invoice_submitted'],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Payment received template (#476)
+    this.templates.set('payment_received', {
+      id: 'payment_received',
+      name: 'Payment Received Notification',
+      version: '1.0.0',
+      subject: 'Payment received for invoice #{{invoiceId}}',
+      body: `Payment of {{amount}} was received for invoice #{{invoiceId}} from {{payer}}.
+
+Amount: {{amount}}
+Freelancer: {{freelancer}}
+Paid At: {{paidAt}}
+
+Settlement is complete. Liquidity providers' loans are repaid where applicable.`,
+      triggers: ['payment_received', 'invoice_paid'],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Dispute opened template (#476)
+    this.templates.set('dispute_opened', {
+      id: 'dispute_opened',
+      name: 'Dispute Opened Notification',
+      version: '1.0.0',
+      subject: 'Dispute opened for invoice #{{invoiceId}}',
+      body: `A dispute was opened on invoice #{{invoiceId}} for {{amount}}.
+
+Amount: {{amount}}
+Freelancer: {{freelancer}}
+Payer: {{payer}}
+Funder: {{funder}}
+
+Review the dispute and submit evidence before the response deadline.`,
+      triggers: ['dispute_opened'],
+      createdAt: now,
+      updatedAt: now,
+    });
+
     // Invoice paid template
     this.templates.set('invoice_paid', {
       id: 'invoice_paid',

@@ -41,8 +41,11 @@ export const FALLBACK_MAP: Record<ProviderChannel, ProviderChannel[]> = {
 export const TRIGGER_PRIORITY: Record<NotificationTrigger, 'critical' | 'high' | 'low'> = {
   invoice_defaulted: 'critical',
   invoice_overdue: 'critical',
+  dispute_opened: 'critical',
   invoice_due_soon: 'high',
+  payment_received: 'high',
   invoice_paid: 'high',
+  invoice_submitted: 'low',
   invoice_funded: 'low',
 };
 

@@ -1,0 +1,68 @@
+{
+  "control": "on-call-escalation-handoff",
+  "version": 1,
+  "owners": {
+    "primary": "@infrastructure-lead",
+    "oncall": "@sre-oncall",
+    "secondary": "@devops-oncall",
+    "escalation": "@security-lead",
+    "checklist_owner": "@infrastructure-lead"
+  },
+  "channels": {
+    "war_room": "#incident-response",
+    "contact_channel": "#iln-on-call",
+    "pager_webhook_env": "ALERT_WEBHOOK_URL",
+    "status_page": "https://status.iln.finance"
+  },
+  "sla": {
+    "ack_minutes": 15,
+    "p1_escalation_minutes": 15,
+    "p2_escalation_minutes": 60
+  },
+  "rotation": {
+    "interval_days": 7,
+    "handoff_window_hours": 24,
+    "last_handoff": "2026-11-23",
+    "next_handoff_due": "2026-11-30"
+  },
+  "checklist": [
+    {
+      "id": "owner-assigned",
+      "owner": "@infrastructure-lead",
+      "runbook_anchor": "#2-owners-and-escalation"
+    },
+    {
+      "id": "secondary-acknowledged",
+      "owner": "@devops-oncall",
+      "runbook_anchor": "#3-handoff-checklist"
+    },
+    {
+      "id": "open-incidents-reviewed",
+      "owner": "@sre-oncall",
+      "runbook_anchor": "#3-handoff-checklist"
+    },
+    {
+      "id": "service-health-reviewed",
+      "owner": "@sre-oncall",
+      "runbook_anchor": "#3-handoff-checklist"
+    },
+    {
+      "id": "pending-prs-reviewed",
+      "owner": "@release-lead",
+      "runbook_anchor": "#3-handoff-checklist"
+    },
+    {
+      "id": "p1-path-tested",
+      "owner": "@security-lead",
+      "runbook_anchor": "#2-owners-and-escalation"
+    },
+    {
+      "id": "recovery-path-confirmed",
+      "owner": "@infrastructure-lead",
+      "runbook_anchor": "#4-recovery-path"
+    }
+  ],
+  "runbook": "docs/runbooks/on-call-escalation-handoff.md",
+  "published_page": "packages/docs/content/on-call-escalation-handoff.mdx",
+  "evidence": "docs/mainnet-launch-checklist.md"
+}

@@ -176,7 +176,7 @@ Audit CLI — query delivery-confirmation audit log
 Options:
   --recipient <addr>   Filter by recipient Stellar address
   --event <id>         Filter by eventId
-  --trigger <name>     Filter by trigger (invoice_funded, invoice_paid, invoice_defaulted, invoice_due_soon, invoice_overdue)
+  --trigger <name>     Filter by trigger (invoice_submitted, invoice_funded, payment_received, invoice_paid, invoice_defaulted, dispute_opened, invoice_due_soon, invoice_overdue)
   --channel <name>     Filter by channel (email, webhook, sms, websocket)
   --status <name>      Filter by status (pending, delivered, failed)
   --start <ISO>        Start time (inclusive, ISO 8601)

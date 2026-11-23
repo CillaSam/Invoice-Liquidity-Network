@@ -68,8 +68,17 @@ The service (`notifications/src/api.ts` + `preferences-api.ts`) listens on
 Allowed `channel` values on the persisted path: `email`, `webhook`, `sms`
 (`ALLOWED_CHANNELS` in `config.ts`). `websocket` is delivered by the injectable
 dispatcher but is not a persisted subscription channel. Allowed `triggers`
-(`ALLOWED_TRIGGERS`): `invoice_funded`, `invoice_paid`, `invoice_defaulted`,
-`invoice_due_soon`, `invoice_overdue`.
+(`ALLOWED_TRIGGERS`): `invoice_submitted`, `invoice_funded`,
+`payment_received`, `invoice_paid` (legacy alias), `invoice_defaulted`,
+`dispute_opened`, `invoice_due_soon`, `invoice_overdue`.
+
+The SDK exposes the same values through `NotificationTrigger` and maps
+lifecycle events as follows: `submitted → invoice_submitted`,
+`funded → invoice_funded`, `paid → payment_received`,
+`defaulted → invoice_defaulted`, and `disputed → dispute_opened`. Use
+`NotificationsClient.handleInvoiceEvent()` to render and persist a
+notification record locally; records are deduplicated by `eventId` and stored
+using the SDK's storage-adapter pattern.
 
 ### Preferences (`preferences-api.ts`, mounted at `/preferences`)
 
@@ -159,14 +168,23 @@ const client = new NotificationsClient("http://localhost:4001");
 const sub = await client.subscribeEmail(
   "GABC...",
   "user@example.com",
-  [NotificationTrigger.InvoiceFunded, NotificationTrigger.InvoiceSettled],
+  [
+    NotificationTrigger.InvoiceSubmitted,
+    NotificationTrigger.InvoiceFunded,
+    NotificationTrigger.PaymentReceived,
+    NotificationTrigger.DisputeOpened,
+    NotificationTrigger.InvoiceDefaulted,
+  ],
 );
 
-await client.subscribeWebhook(
-  "GABC...",
-  "https://myapp.example/webhook/iln",
-  [NotificationTrigger.InvoiceDefaulted],
-);
+// Render and persist a local notification for a lifecycle event.
+const record = client.handleInvoiceEvent({
+  eventId: "evt-123",
+  type: "disputed",
+  invoice: { id: 42, amount: "10000000", payer: "GPAYER..." },
+  timestamp: Date.now(),
+});
+console.log(record.subject, record.message);
 
 const subs = await client.listSubscriptions("GABC...");
 await client.testWebhook(sub.id);      // { success, statusCode }
@@ -175,19 +193,29 @@ await client.unsubscribe(sub.id);
 
 | Method | Signature |
 | --- | --- |
+| `handleInvoiceEvent` | `(event: InvoiceNotificationEvent) => InvoiceNotificationRecord` |
 | `subscribeEmail` | `(address, email, triggers) => Promise<Subscription>` |
 | `subscribeWebhook` | `(address, url, triggers) => Promise<Subscription>` |
 | `listSubscriptions` | `(address) => Promise<Subscription[]>` |
 | `testWebhook` | `(subscriptionId) => Promise<{ success: boolean; statusCode: number }>` |
 | `unsubscribe` | `(subscriptionId) => Promise<void>` |
 
+`client.notifications` is a `NotificationStore` with `list`, `markAsRead`,
+`markAllAsRead`, and `clear`. It uses `localStorage` when available and an
+in-memory adapter otherwise; pass `storage` and `storageKey` to the constructor
+to control persistence. Records are deduplicated by `eventId` and capped at 200
+by default.
+
 The SDK client does not send a `webhook_secret`, so the service generates one
 per subscription. To set a known secret for verifying `X-ILN-Signature`, call
 `POST /subscribe` directly with a `webhook_secret` field.
 
-`SubscriptionChannel` in the SDK is `'email' | 'webhook'`. `NotificationTrigger`
-values: `InvoiceFunded` (`invoice_funded`), `InvoiceSettled` (`invoice_paid`),
-`InvoiceDefaulted` (`invoice_defaulted`), `DueDateWarning` (`invoice_due_soon`).
+`SubscriptionChannel` in the SDK is `'email' | 'webhook' | 'sms' | 'websocket'`.
+`NotificationTrigger` values: `InvoiceSubmitted` (`invoice_submitted`),
+`InvoiceFunded` (`invoice_funded`), `PaymentReceived` (`payment_received`),
+`InvoiceSettled` (`invoice_paid`, legacy alias), `InvoiceDefaulted`
+(`invoice_defaulted`), `DisputeOpened` (`dispute_opened`), `DueDateWarning`
+(`invoice_due_soon`), and `InvoiceOverdue` (`invoice_overdue`).
 
 ## Environment Variables
 

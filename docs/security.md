@@ -19,7 +19,11 @@ For operational incident handling procedures across SDK, indexer, oracle, and no
 
 For the protocol-level attack surface analysis, see the [Threat Model](./threat-model.md).
 
-For the reporter-facing introduction to disclosure, see the
-[Vulnerability Disclosure Policy](./vulnerability-disclosure.md).
+The [Vulnerability Disclosure Policy](./vulnerability-disclosure.md) is a
+reporter-facing summary; the repository root [`SECURITY.md`](../SECURITY.md)
+remains the single canonical policy. If the GitHub private reporting page
+returns 404 or the documented email is unavailable, use the
+[private security channel request](../.github/ISSUE_TEMPLATE/security-private-channel.md)
+described in `SECURITY.md`.
 
 This stub is kept so existing links to `docs/security.md` continue to resolve.
