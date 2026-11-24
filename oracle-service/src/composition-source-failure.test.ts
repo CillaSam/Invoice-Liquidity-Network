@@ -258,7 +258,7 @@ describe('normal path: behavior for covered sources is unchanged', () => {
       external: makeExternal({ status: 'verified', checkedAt: FRESH_ISO }),
     });
 
-    expect(result.confidence).toBe(CLEAN.baseConfidence + EXTERNAL_VERIFIED_BONUS);
+    expect(result.confidence).toBeCloseTo(CLEAN.baseConfidence + EXTERNAL_VERIFIED_BONUS, 5);
     expect(result.isVerified).toBe(true);
   });
 
